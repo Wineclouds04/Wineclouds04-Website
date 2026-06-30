@@ -1,0 +1,129 @@
+openapi: 3.1.0
+info:
+  title: Personal Blog API
+  version: 0.1.0
+  description: |
+    个人博客 HTTP API 契约。阶段一仅提供基础设施状态接口；
+    后续业务接口将在对应阶段按此契约扩展。
+servers:
+  - url: /api/v1
+    description: 当前站点
+tags:
+  - name: Infrastructure
+    description: 运行状态与基础设施
+  - name: Public
+    description: 公开博客接口
+  - name: Auth
+    description: 管理员认证接口
+  - name: Admin
+    description: 管理后台接口
+paths:
+  /status:
+    get:
+      operationId: getInfrastructureStatus
+      summary: 获取 API 运行状态
+      tags:
+        - Infrastructure
+      responses:
+        "200":
+          description: API 正常运行
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+              description: 状态接口不缓存
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+        default:
+          $ref: "#/components/responses/Problem"
+components:
+  responses:
+    Problem:
+      description: RFC 9457 问题详情
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/ProblemDetail"
+  schemas:
+    StatusResponse:
+      type: object
+      additionalProperties: false
+      required:
+        - application
+        - status
+        - timestamp
+      properties:
+        application:
+          type: string
+          example: personal-blog-api
+        status:
+          type: string
+          const: ok
+        timestamp:
+          type: string
+          format: date-time
+    ProblemDetail:
+      type: object
+      required:
+        - type
+        - title
+        - status
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+          minimum: 400
+          maximum: 599
+        detail:
+          type: string
+        instance:
+          type: string
+          format: uri-reference
+        traceId:
+          type: string
+    Page:
+      type: object
+      required:
+        - items
+        - page
+        - size
+        - total
+        - hasNext
+      properties:
+        items:
+          type: array
+          items: {}
+        page:
+          type: integer
+          minimum: 1
+        size:
+          type: integer
+          minimum: 1
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+        hasNext:
+          type: boolean
+    CursorPage:
+      type: object
+      required:
+        - items
+        - hasNext
+      properties:
+        items:
+          type: array
+          items: {}
+        nextCursor:
+          type:
+            - string
+            - "null"
+        hasNext:
+          type: boolean
+

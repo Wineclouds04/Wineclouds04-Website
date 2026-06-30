@@ -1,0 +1,23 @@
+# IDE
+.idea/
+*.iml
+
+# Environment and secrets
+.env
+!.env.example
+
+# Java
+backend/target/
+*.log
+*.tsbuildinfo
+
+# Node
+node_modules/
+.nuxt/
+.output/
+dist/
+.vite/
+
+# OS
+.DS_Store
+Thumbs.db
