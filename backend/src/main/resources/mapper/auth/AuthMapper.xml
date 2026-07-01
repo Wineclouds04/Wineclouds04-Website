@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.blog.auth.mapper.AuthMapper">
+    <resultMap id="userAccount" type="com.example.blog.auth.model.UserAccount">
+        <id property="id" column="id"/>
+        <result property="username" column="username"/>
+        <result property="passwordHash" column="password_hash"/>
+        <result property="nickname" column="nickname"/>
+        <result property="email" column="email"/>
+        <result property="role" column="role"/>
+        <result property="status" column="status"/>
+        <result property="lastLoginAt" column="last_login_at"/>
+        <result property="passwordChangedAt" column="password_changed_at"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <sql id="userColumns">
+        id, username, password_hash, nickname, email, role, status,
+        last_login_at, password_changed_at, created_at, updated_at
+    </sql>
+
+    <select id="findByUsername" resultMap="userAccount">
+        SELECT <include refid="userColumns"/>
+        FROM sys_user
+        WHERE username = #{username}
+        LIMIT 1
+    </select>
+
+    <select id="findById" resultMap="userAccount">
+        SELECT <include refid="userColumns"/>
+        FROM sys_user
+        WHERE id = #{id}
+        LIMIT 1
+    </select>
+
+    <select id="countUsers" resultType="long">
+        SELECT COUNT(*) FROM sys_user
+    </select>
+
+    <insert id="insertAdmin">
+        INSERT INTO sys_user (username, password_hash, nickname, role, status)
+        VALUES (#{username}, #{passwordHash}, #{nickname}, 'ADMIN', 'ACTIVE')
+    </insert>
+
+    <update id="updateLastLogin">
+        UPDATE sys_user
+        SET last_login_at = #{lastLoginAt}
+        WHERE id = #{id}
+    </update>
+
+    <update id="updatePassword">
+        UPDATE sys_user
+        SET password_hash = #{passwordHash},
+            password_changed_at = #{changedAt},
+            version = version + 1
+        WHERE id = #{id}
+    </update>
+</mapper>

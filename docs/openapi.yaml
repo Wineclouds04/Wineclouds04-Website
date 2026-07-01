@@ -1,10 +1,10 @@
 openapi: 3.1.0
 info:
   title: Personal Blog API
-  version: 0.1.0
+  version: 0.3.0
   description: |
-    个人博客 HTTP API 契约。阶段一仅提供基础设施状态接口；
-    后续业务接口将在对应阶段按此契约扩展。
+    个人博客 HTTP API 契约。阶段二已提供管理员认证、文章编辑、
+    分类标签和 OSS 媒体闭环；公开内容接口将在阶段三继续扩展。
 servers:
   - url: /api/v1
     description: 当前站点
@@ -38,7 +38,606 @@ paths:
                 $ref: "#/components/schemas/StatusResponse"
         default:
           $ref: "#/components/responses/Problem"
+  /auth/login:
+    post:
+      operationId: login
+      summary: 管理员登录
+      tags: [Auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: 登录成功，同时设置 HttpOnly Refresh Cookie 和 CSRF Cookie
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        default:
+          $ref: "#/components/responses/Problem"
+  /auth/refresh:
+    post:
+      operationId: refreshSession
+      summary: 轮换刷新会话
+      tags: [Auth]
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "200":
+          description: 刷新成功并轮换 Cookie
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        default:
+          $ref: "#/components/responses/Problem"
+  /auth/logout:
+    post:
+      operationId: logout
+      summary: 注销当前刷新会话
+      tags: [Auth]
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204":
+          description: 注销完成
+        default:
+          $ref: "#/components/responses/Problem"
+  /auth/logout-all:
+    post:
+      operationId: logoutAll
+      summary: 注销当前管理员的全部刷新会话
+      tags: [Auth]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/CsrfToken"
+      responses:
+        "204":
+          description: 全部会话已撤销
+        default:
+          $ref: "#/components/responses/Problem"
+  /auth/me:
+    get:
+      operationId: getCurrentAdmin
+      summary: 获取当前管理员
+      tags: [Auth]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 当前管理员
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        default:
+          $ref: "#/components/responses/Problem"
+  /auth/password:
+    put:
+      operationId: changePassword
+      summary: 修改当前管理员密码并撤销全部刷新会话
+      tags: [Auth]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PasswordChangeRequest"
+      responses:
+        "204":
+          description: 密码修改成功
+        default:
+          $ref: "#/components/responses/Problem"
+  /admin/articles:
+    get:
+      operationId: listAdminArticles
+      summary: 分页查询文章
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: "#/components/schemas/ArticleStatus"
+        - name: keyword
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        "200":
+          description: 文章分页
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArticlePage"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createArticle
+      summary: 新建文章草稿
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ArticleUpsertRequest"
+      responses:
+        "201":
+          description: 草稿已创建
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArticleDetail"
+        default:
+          $ref: "#/components/responses/Problem"
+  /admin/articles/{id}:
+    parameters:
+      - $ref: "#/components/parameters/ArticleId"
+    get:
+      operationId: getAdminArticle
+      summary: 获取文章编辑详情
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 文章编辑详情
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArticleDetail"
+        default:
+          $ref: "#/components/responses/Problem"
+    put:
+      operationId: updateArticle
+      summary: 更新文章
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ArticleUpsertRequest"
+      responses:
+        "200":
+          description: 文章已更新
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArticleDetail"
+        default:
+          $ref: "#/components/responses/Problem"
+    delete:
+      operationId: deleteArticle
+      summary: 软删除文章
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: 文章已移入归档
+        default:
+          $ref: "#/components/responses/Problem"
+  /admin/articles/{id}/publish:
+    post:
+      operationId: publishArticle
+      summary: 发布文章
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ArticleId"
+      responses:
+        "200":
+          description: 文章已发布
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArticleDetail"
+        default:
+          $ref: "#/components/responses/Problem"
+  /admin/articles/{id}/withdraw:
+    post:
+      operationId: withdrawArticle
+      summary: 撤回文章为草稿
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/ArticleId"
+      responses:
+        "200":
+          description: 文章已撤回
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArticleDetail"
+        default:
+          $ref: "#/components/responses/Problem"
+  /admin/categories/options:
+    get:
+      operationId: listCategoryOptions
+      summary: 获取可见分类选项
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 分类选项
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TaxonomyOption"
+        default:
+          $ref: "#/components/responses/Problem"
+  /admin/tags/options:
+    get:
+      operationId: listTagOptions
+      summary: 获取可见标签选项
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 标签选项
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TaxonomyOption"
+        default:
+          $ref: "#/components/responses/Problem"
+  /admin/markdown/preview:
+    post:
+      operationId: previewMarkdown
+      summary: 安全渲染 Markdown 预览
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarkdownPreviewRequest"
+      responses:
+        "200":
+          description: 渲染结果
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarkdownPreviewResponse"
+        default:
+          $ref: "#/components/responses/Problem"
+  /admin/categories:
+    get:
+      operationId: listAdminCategories
+      summary: 查询全部分类
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 分类列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TaxonomyItem"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createCategory
+      summary: 新建分类
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaxonomyRequest"
+      responses:
+        "201":
+          description: 分类已创建
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaxonomyItem"
+        default:
+          $ref: "#/components/responses/Problem"
+  /admin/categories/{id}:
+    parameters:
+      - $ref: "#/components/parameters/TaxonomyId"
+    put:
+      operationId: updateCategory
+      summary: 更新分类
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaxonomyRequest"
+      responses:
+        "200":
+          description: 分类已更新
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaxonomyItem"
+        default:
+          $ref: "#/components/responses/Problem"
+    delete:
+      operationId: deleteCategory
+      summary: 删除分类
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: 分类已删除
+        default:
+          $ref: "#/components/responses/Problem"
+  /admin/tags:
+    get:
+      operationId: listAdminTags
+      summary: 查询全部标签
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 标签列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TaxonomyItem"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: createTag
+      summary: 新建标签
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaxonomyRequest"
+      responses:
+        "201":
+          description: 标签已创建
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaxonomyItem"
+        default:
+          $ref: "#/components/responses/Problem"
+  /admin/tags/{id}:
+    parameters:
+      - $ref: "#/components/parameters/TaxonomyId"
+    put:
+      operationId: updateTag
+      summary: 更新标签
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaxonomyRequest"
+      responses:
+        "200":
+          description: 标签已更新
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaxonomyItem"
+        default:
+          $ref: "#/components/responses/Problem"
+    delete:
+      operationId: deleteTag
+      summary: 删除标签
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: 标签已删除
+        default:
+          $ref: "#/components/responses/Problem"
+  /admin/media/config:
+    get:
+      operationId: getMediaConfig
+      summary: 获取媒体上传能力状态
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: 上传配置
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaConfig"
+        default:
+          $ref: "#/components/responses/Problem"
+  /admin/media:
+    get:
+      operationId: listMedia
+      summary: 分页查询媒体
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 24
+      responses:
+        "200":
+          description: 媒体分页
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaPage"
+        default:
+          $ref: "#/components/responses/Problem"
+    post:
+      operationId: uploadMedia
+      summary: 上传图片到 OSS
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                altText:
+                  type: string
+                  maxLength: 300
+      responses:
+        "200":
+          description: 上传成功
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaAsset"
+        default:
+          $ref: "#/components/responses/Problem"
+  /admin/media/{id}:
+    parameters:
+      - $ref: "#/components/parameters/MediaId"
+    put:
+      operationId: updateMedia
+      summary: 更新图片替代文本
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                altText:
+                  type:
+                    - string
+                    - "null"
+                  maxLength: 300
+      responses:
+        "200":
+          description: 媒体已更新
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaAsset"
+        default:
+          $ref: "#/components/responses/Problem"
+    delete:
+      operationId: deleteMedia
+      summary: 删除未引用媒体
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      responses:
+        "204":
+          description: 媒体已删除
+        default:
+          $ref: "#/components/responses/Problem"
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    ArticleId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+    TaxonomyId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+    MediaId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+        minimum: 1
+    CsrfToken:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      schema:
+        type: string
   responses:
     Problem:
       description: RFC 9457 问题详情
@@ -64,6 +663,405 @@ components:
         timestamp:
           type: string
           format: date-time
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          maxLength: 64
+        password:
+          type: string
+          format: password
+          maxLength: 200
+    PasswordChangeRequest:
+      type: object
+      additionalProperties: false
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword:
+          type: string
+          format: password
+        newPassword:
+          type: string
+          format: password
+          minLength: 12
+          maxLength: 200
+    AuthResponse:
+      type: object
+      additionalProperties: false
+      required: [accessToken, expiresAt, user]
+      properties:
+        accessToken:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+        user:
+          $ref: "#/components/schemas/UserResponse"
+    UserResponse:
+      type: object
+      additionalProperties: false
+      required: [id, username, nickname, role]
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        nickname:
+          type: string
+        email:
+          type:
+            - string
+            - "null"
+          format: email
+        role:
+          type: string
+          enum: [ADMIN, DEMO]
+    ArticleStatus:
+      type: string
+      enum: [DRAFT, SCHEDULED, PUBLISHED, ARCHIVED]
+    ArticleVisibility:
+      type: string
+      enum: [PUBLIC, PRIVATE]
+    TaxonomyOption:
+      type: object
+      required: [id, name, slug]
+      properties:
+        id:
+          type: integer
+          format: int64
+        name:
+          type: string
+        slug:
+          type: string
+    ArticleUpsertRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - title
+        - slug
+        - contentMarkdown
+        - tagIds
+        - visibility
+        - pinned
+        - allowComment
+        - version
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        slug:
+          type: string
+          minLength: 1
+          maxLength: 160
+          pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        summary:
+          type:
+            - string
+            - "null"
+          maxLength: 600
+        contentMarkdown:
+          type: string
+        categoryId:
+          type:
+            - integer
+            - "null"
+          format: int64
+        tagIds:
+          type: array
+          maxItems: 20
+          uniqueItems: true
+          items:
+            type: integer
+            format: int64
+        visibility:
+          $ref: "#/components/schemas/ArticleVisibility"
+        pinned:
+          type: boolean
+        allowComment:
+          type: boolean
+        metaTitle:
+          type:
+            - string
+            - "null"
+          maxLength: 200
+        metaDescription:
+          type:
+            - string
+            - "null"
+          maxLength: 320
+        canonicalUrl:
+          type:
+            - string
+            - "null"
+          maxLength: 500
+        version:
+          type: integer
+          minimum: 0
+    ArticleListItem:
+      type: object
+      required:
+        - id
+        - title
+        - slug
+        - status
+        - visibility
+        - pinned
+        - wordCount
+        - viewCount
+        - updatedAt
+        - version
+      properties:
+        id:
+          type: integer
+          format: int64
+        title:
+          type: string
+        slug:
+          type: string
+        summary:
+          type:
+            - string
+            - "null"
+        status:
+          $ref: "#/components/schemas/ArticleStatus"
+        visibility:
+          $ref: "#/components/schemas/ArticleVisibility"
+        pinned:
+          type: boolean
+        categoryName:
+          type:
+            - string
+            - "null"
+        wordCount:
+          type: integer
+        viewCount:
+          type: integer
+          format: int64
+        publishedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        version:
+          type: integer
+    ArticlePage:
+      type: object
+      additionalProperties: false
+      required: [items, total, page, pageSize]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ArticleListItem"
+        total:
+          type: integer
+          format: int64
+        page:
+          type: integer
+        pageSize:
+          type: integer
+    ArticleDetail:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: "#/components/schemas/ArticleListItem"
+        - type: object
+          required:
+            - contentMarkdown
+            - contentHtml
+            - tagIds
+            - allowComment
+            - readingMinutes
+            - createdAt
+          properties:
+            contentMarkdown:
+              type: string
+            contentHtml:
+              type: string
+            categoryId:
+              type:
+                - integer
+                - "null"
+              format: int64
+            tagIds:
+              type: array
+              items:
+                type: integer
+                format: int64
+            allowComment:
+              type: boolean
+            readingMinutes:
+              type: integer
+            metaTitle:
+              type:
+                - string
+                - "null"
+            metaDescription:
+              type:
+                - string
+                - "null"
+            canonicalUrl:
+              type:
+                - string
+                - "null"
+            createdAt:
+              type: string
+              format: date-time
+    MarkdownPreviewRequest:
+      type: object
+      additionalProperties: false
+      required: [markdown]
+      properties:
+        markdown:
+          type: string
+          maxLength: 1000000
+    MarkdownPreviewResponse:
+      type: object
+      additionalProperties: false
+      required: [html, plain, wordCount, readingMinutes]
+      properties:
+        html:
+          type: string
+        plain:
+          type: string
+        wordCount:
+          type: integer
+        readingMinutes:
+          type: integer
+    TaxonomyRequest:
+      type: object
+      additionalProperties: false
+      required: [name, slug, sortOrder, visible]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 64
+        slug:
+          type: string
+          minLength: 1
+          maxLength: 80
+          pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+        description:
+          type:
+            - string
+            - "null"
+          maxLength: 300
+        sortOrder:
+          type: integer
+          minimum: 0
+        visible:
+          type: boolean
+    TaxonomyItem:
+      unevaluatedProperties: false
+      allOf:
+        - $ref: "#/components/schemas/TaxonomyOption"
+        - type: object
+          required:
+            - sortOrder
+            - visible
+            - articleCount
+            - createdAt
+            - updatedAt
+          properties:
+            description:
+              type:
+                - string
+                - "null"
+            sortOrder:
+              type: integer
+            visible:
+              type: boolean
+            articleCount:
+              type: integer
+              format: int64
+            createdAt:
+              type: string
+              format: date-time
+            updatedAt:
+              type: string
+              format: date-time
+    MediaConfig:
+      type: object
+      additionalProperties: false
+      required: [configured, maxImageSize]
+      properties:
+        configured:
+          type: boolean
+        maxImageSize:
+          type: integer
+          format: int64
+    MediaAsset:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - originalName
+        - mediaType
+        - extension
+        - sizeBytes
+        - status
+        - referenceCount
+        - url
+        - createdAt
+      properties:
+        id:
+          type: integer
+          format: int64
+        originalName:
+          type: string
+        mediaType:
+          type: string
+        extension:
+          type: string
+        sizeBytes:
+          type: integer
+          format: int64
+        width:
+          type:
+            - integer
+            - "null"
+        height:
+          type:
+            - integer
+            - "null"
+        altText:
+          type:
+            - string
+            - "null"
+        status:
+          type: string
+          enum: [PENDING, ACTIVE, ORPHAN, DELETED]
+        referenceCount:
+          type: integer
+        url:
+          type: string
+          format: uri
+        createdAt:
+          type: string
+          format: date-time
+    MediaPage:
+      type: object
+      additionalProperties: false
+      required: [items, total, page, pageSize]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/MediaAsset"
+        total:
+          type: integer
+          format: int64
+        page:
+          type: integer
+        pageSize:
+          type: integer
     ProblemDetail:
       type: object
       required:
@@ -126,4 +1124,3 @@ components:
             - "null"
         hasNext:
           type: boolean
-

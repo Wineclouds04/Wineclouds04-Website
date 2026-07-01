@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.blog.taxonomy.mapper.TaxonomyMapper">
+    <sql id="categoryColumns">
+        c.id, c.name, c.slug, c.description, c.sort_order, c.visible,
+        COUNT(a.id) AS article_count, c.created_at, c.updated_at
+    </sql>
+
+    <select id="findCategories" resultType="com.example.blog.taxonomy.dto.TaxonomyItem">
+        SELECT <include refid="categoryColumns"/>
+        FROM category c
+        LEFT JOIN article a ON a.category_id = c.id AND a.deleted_at IS NULL
+        GROUP BY c.id
+        ORDER BY c.sort_order, c.name
+    </select>
+
+    <select id="findCategoryById" resultType="com.example.blog.taxonomy.dto.TaxonomyItem">
+        SELECT <include refid="categoryColumns"/>
+        FROM category c
+        LEFT JOIN article a ON a.category_id = c.id AND a.deleted_at IS NULL
+        WHERE c.id = #{id}
+        GROUP BY c.id
+    </select>
+
+    <insert id="insertCategory">
+        INSERT INTO category (name, slug, description, sort_order, visible)
+        VALUES (#{name}, #{slug}, #{description}, #{sortOrder}, #{visible})
+    </insert>
+
+    <update id="updateCategory">
+        UPDATE category
+        SET name = #{name},
+            slug = #{slug},
+            description = #{description},
+            sort_order = #{sortOrder},
+            visible = #{visible}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteCategory">
+        DELETE FROM category WHERE id = #{id}
+    </delete>
+
+    <sql id="tagColumns">
+        t.id, t.name, t.slug, t.description, t.sort_order, t.visible,
+        COUNT(a.id) AS article_count, t.created_at, t.updated_at
+    </sql>
+
+    <select id="findTags" resultType="com.example.blog.taxonomy.dto.TaxonomyItem">
+        SELECT <include refid="tagColumns"/>
+        FROM tag t
+        LEFT JOIN article_tag at ON at.tag_id = t.id
+        LEFT JOIN article a ON a.id = at.article_id AND a.deleted_at IS NULL
+        GROUP BY t.id
+        ORDER BY t.sort_order, t.name
+    </select>
+
+    <select id="findTagById" resultType="com.example.blog.taxonomy.dto.TaxonomyItem">
+        SELECT <include refid="tagColumns"/>
+        FROM tag t
+        LEFT JOIN article_tag at ON at.tag_id = t.id
+        LEFT JOIN article a ON a.id = at.article_id AND a.deleted_at IS NULL
+        WHERE t.id = #{id}
+        GROUP BY t.id
+    </select>
+
+    <insert id="insertTag">
+        INSERT INTO tag (name, slug, description, sort_order, visible)
+        VALUES (#{name}, #{slug}, #{description}, #{sortOrder}, #{visible})
+    </insert>
+
+    <update id="updateTag">
+        UPDATE tag
+        SET name = #{name},
+            slug = #{slug},
+            description = #{description},
+            sort_order = #{sortOrder},
+            visible = #{visible}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteTag">
+        DELETE FROM tag WHERE id = #{id}
+    </delete>
+
+    <select id="lastInsertId" resultType="long">
+        SELECT LAST_INSERT_ID()
+    </select>
+</mapper>

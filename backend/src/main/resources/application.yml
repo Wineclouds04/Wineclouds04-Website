@@ -29,6 +29,10 @@ spring:
   mvc:
     problemdetails:
       enabled: true
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 11MB
 
 server:
   port: ${SERVER_PORT:8080}
@@ -63,9 +67,31 @@ management:
 info:
   app:
     name: ${spring.application.name}
-    stage: infrastructure
+    stage: authentication-and-content
+
+blog:
+  auth:
+    issuer: personal-blog
+    audience: personal-blog-admin
+    jwt-secret: ${JWT_SECRET:local-development-jwt-secret-change-before-production-2026}
+    access-ttl: ${ACCESS_TOKEN_TTL:15m}
+    refresh-ttl: ${REFRESH_TOKEN_TTL:7d}
+    secure-cookies: ${SECURE_COOKIES:false}
+    allowed-origins: ${ADMIN_ALLOWED_ORIGINS:http://localhost:5173,http://admin.localhost}
+    initial-admin:
+      username: ${ADMIN_INITIAL_USERNAME:}
+      password: ${ADMIN_INITIAL_PASSWORD:}
+      nickname: ${ADMIN_INITIAL_NICKNAME:Administrator}
+  oss:
+    region: ${OSS_REGION:}
+    endpoint: ${OSS_ENDPOINT:}
+    bucket: ${OSS_BUCKET:}
+    cdn-domain: ${OSS_CDN_DOMAIN:}
+    object-prefix: ${OSS_OBJECT_PREFIX:blog/dev}
+    max-image-size: ${OSS_MAX_IMAGE_SIZE:10485760}
+    max-image-width: ${OSS_MAX_IMAGE_WIDTH:12000}
+    max-image-height: ${OSS_MAX_IMAGE_HEIGHT:12000}
 
 logging:
   pattern:
     console: "%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX,UTC} %-5level [%thread] %logger{36} - %msg%n"
-

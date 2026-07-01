@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.blog.article.mapper.ArticleMapper">
+    <sql id="articleFilter">
+        WHERE a.deleted_at IS NULL
+        <if test="status != null">
+            AND a.status = #{status}
+        </if>
+        <if test="keyword != null">
+            AND (a.title LIKE CONCAT('%', #{keyword}, '%')
+                OR a.slug LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+    </sql>
+
+    <select id="findPage" resultType="com.example.blog.article.dto.ArticleListItem">
+        SELECT a.id, a.title, a.slug, a.summary, a.status, a.visibility,
+               a.is_pinned, c.name AS category_name, a.word_count, a.view_count,
+               a.published_at, a.updated_at, a.version
+        FROM article a
+        LEFT JOIN category c ON c.id = a.category_id
+        <include refid="articleFilter"/>
+        ORDER BY a.updated_at DESC, a.id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*)
+        FROM article a
+        <include refid="articleFilter"/>
+    </select>
+
+    <select id="findById" resultType="com.example.blog.article.model.ArticleRecord">
+        SELECT id, title, slug, summary, content_markdown, content_html,
+               category_id, status, visibility, is_pinned, allow_comment,
+               word_count, reading_minutes, view_count, meta_title, meta_description,
+               canonical_url, published_at, created_at, updated_at, version
+        FROM article
+        WHERE id = #{id} AND deleted_at IS NULL
+        LIMIT 1
+    </select>
+
+    <select id="findTagIds" resultType="long">
+        SELECT tag_id
+        FROM article_tag
+        WHERE article_id = #{articleId}
+        ORDER BY tag_id
+    </select>
+
+    <select id="slugExists" resultType="boolean">
+        SELECT EXISTS(
+            SELECT 1 FROM article
+            WHERE slug = #{slug}
+            <if test="excludeId != null">AND id != #{excludeId}</if>
+        )
+    </select>
+
+    <select id="categoryExists" resultType="boolean">
+        SELECT EXISTS(SELECT 1 FROM category WHERE id = #{id})
+    </select>
+
+    <select id="countExistingTags" resultType="int">
+        SELECT COUNT(*)
+        FROM tag
+        WHERE id IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <select id="findCategories" resultType="com.example.blog.article.dto.TaxonomyOption">
+        SELECT id, name, slug
+        FROM category
+        WHERE visible = 1
+        ORDER BY sort_order, name
+    </select>
+
+    <select id="findTags" resultType="com.example.blog.article.dto.TaxonomyOption">
+        SELECT id, name, slug
+        FROM tag
+        WHERE visible = 1
+        ORDER BY sort_order, name
+    </select>
+
+    <insert id="insert">
+        INSERT INTO article (
+            title, slug, summary, content_markdown, content_html, content_plain,
+            category_id, status, visibility, is_pinned, allow_comment,
+            word_count, reading_minutes, meta_title, meta_description, canonical_url
+        ) VALUES (
+            #{title}, #{slug}, #{summary}, #{markdown}, #{html}, #{plain},
+            #{categoryId}, 'DRAFT', #{visibility}, #{pinned}, #{allowComment},
+            #{wordCount}, #{readingMinutes}, #{metaTitle}, #{metaDescription}, #{canonicalUrl}
+        )
+    </insert>
+
+    <select id="lastInsertId" resultType="long">
+        SELECT LAST_INSERT_ID()
+    </select>
+
+    <update id="update">
+        UPDATE article
+        SET title = #{title},
+            slug = #{slug},
+            summary = #{summary},
+            content_markdown = #{markdown},
+            content_html = #{html},
+            content_plain = #{plain},
+            category_id = #{categoryId},
+            visibility = #{visibility},
+            is_pinned = #{pinned},
+            allow_comment = #{allowComment},
+            word_count = #{wordCount},
+            reading_minutes = #{readingMinutes},
+            meta_title = #{metaTitle},
+            meta_description = #{metaDescription},
+            canonical_url = #{canonicalUrl},
+            version = version + 1
+        WHERE id = #{id} AND version = #{version} AND deleted_at IS NULL
+    </update>
+
+    <delete id="deleteTags">
+        DELETE FROM article_tag WHERE article_id = #{articleId}
+    </delete>
+
+    <insert id="insertTags">
+        INSERT INTO article_tag (article_id, tag_id)
+        VALUES
+        <foreach collection="tagIds" item="tagId" separator=",">
+            (#{articleId}, #{tagId})
+        </foreach>
+    </insert>
+
+    <update id="publish">
+        UPDATE article
+        SET status = 'PUBLISHED',
+            published_at = COALESCE(published_at, #{publishedAt}),
+            scheduled_at = NULL,
+            version = version + 1
+        WHERE id = #{id}
+          AND deleted_at IS NULL
+          AND status IN ('DRAFT', 'SCHEDULED', 'ARCHIVED')
+    </update>
+
+    <update id="withdraw">
+        UPDATE article
+        SET status = 'DRAFT',
+            scheduled_at = NULL,
+            version = version + 1
+        WHERE id = #{id} AND deleted_at IS NULL AND status = 'PUBLISHED'
+    </update>
+
+    <update id="softDelete">
+        UPDATE article
+        SET deleted_at = CURRENT_TIMESTAMP(3),
+            status = 'ARCHIVED',
+            version = version + 1
+        WHERE id = #{id} AND deleted_at IS NULL
+    </update>
+
+    <insert id="insertRedirect">
+        INSERT INTO url_redirect (old_slug, target_path, http_status, enabled)
+        VALUES (#{oldSlug}, #{targetPath}, 301, 1)
+        ON DUPLICATE KEY UPDATE
+            target_path = VALUES(target_path),
+            http_status = 301,
+            enabled = 1
+    </insert>
+</mapper>
