@@ -3,7 +3,7 @@ const api = useBlogApi()
 const { data } = await useAsyncData('tags', () => api.tags())
 
 useSeoMeta({
-  title: '文章标签 · 余白札记',
+  title: '文章标签 · CageWang‘s Blog',
   description: '从标签出发，发现相互关联的文章。'
 })
 </script>

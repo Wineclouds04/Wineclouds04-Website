@@ -3,8 +3,8 @@ const api = useBlogApi()
 const { data } = await useAsyncData('categories', () => api.categories())
 
 useSeoMeta({
-  title: '文章分类 · 余白札记',
-  description: '按主题浏览余白札记。'
+  title: '文章分类 · CageWang‘s Blog',
+  description: '按主题浏览 CageWang‘s Blog。'
 })
 </script>
 
@@ -20,7 +20,7 @@ useSeoMeta({
             <p>{{ item.description || '这个分类还没有写简介。' }}</p>
           </div>
           <span class="taxonomy-count">{{ item.articleCount }} 篇</span>
-          <span class="taxonomy-arrow">↗</span>
+          <i class="taxonomy-arrow iconfont icon-arrow-right" aria-hidden="true" />
         </NuxtLink>
       </div>
       <EmptyState v-else />

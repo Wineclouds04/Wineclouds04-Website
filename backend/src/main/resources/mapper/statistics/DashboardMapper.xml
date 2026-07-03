@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.blog.statistics.mapper.DashboardMapper">
+    <select id="countArticles" resultType="long">
+        SELECT COUNT(*) FROM article WHERE deleted_at IS NULL
+    </select>
+    <select id="countPublishedArticles" resultType="long">
+        SELECT COUNT(*) FROM article
+        WHERE deleted_at IS NULL AND status = 'PUBLISHED' AND visibility = 'PUBLIC'
+    </select>
+    <select id="countComments" resultType="long">
+        SELECT COUNT(*) FROM comment WHERE deleted_at IS NULL AND type = 'ARTICLE'
+    </select>
+    <select id="countPendingComments" resultType="long">
+        SELECT COUNT(*) FROM comment WHERE deleted_at IS NULL AND status = 'PENDING'
+    </select>
+    <select id="countMessages" resultType="long">
+        SELECT COUNT(*) FROM comment WHERE deleted_at IS NULL AND type = 'MESSAGE'
+    </select>
+    <select id="countLikes" resultType="long">
+        SELECT COUNT(*) FROM article_like
+    </select>
+    <select id="sumViews30d" resultType="long">
+        SELECT COALESCE(SUM(view_count), 0) FROM site_visit_daily
+        WHERE stat_date &gt;= CURRENT_DATE - INTERVAL 29 DAY
+    </select>
+    <select id="sumVisitors30d" resultType="long">
+        SELECT COALESCE(SUM(unique_count), 0) FROM site_visit_daily
+        WHERE stat_date &gt;= CURRENT_DATE - INTERVAL 29 DAY
+    </select>
+    <select id="findTrend30d" resultType="com.example.blog.statistics.dto.DashboardTrendPoint">
+        SELECT stat_date AS date, view_count AS views, unique_count AS visitors
+        FROM site_visit_daily
+        WHERE stat_date &gt;= CURRENT_DATE - INTERVAL 29 DAY
+        ORDER BY stat_date
+    </select>
+    <select id="findPopularArticles" resultType="com.example.blog.statistics.dto.DashboardPopularArticle">
+        SELECT id, title, slug, view_count AS views, like_count AS likes,
+               comment_count AS comments
+        FROM article
+        WHERE deleted_at IS NULL AND status = 'PUBLISHED'
+        ORDER BY (view_count + like_count * 3 + comment_count * 5) DESC,
+                 published_at DESC
+        LIMIT #{limit}
+    </select>
+</mapper>

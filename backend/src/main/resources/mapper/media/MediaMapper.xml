@@ -6,17 +6,20 @@
     <sql id="columns">
         m.id, m.object_key, m.original_name, m.media_type, m.extension, m.size_bytes,
         m.width, m.height, m.sha256, m.alt_text,
-        CASE WHEN EXISTS (
+        CASE WHEN m.deleted_at IS NULL AND EXISTS (
             SELECT 1 FROM article a
             WHERE a.deleted_at IS NULL
-              AND a.content_markdown LIKE CONCAT('%', m.object_key, '%')
+              AND (a.cover_media_id = m.id
+                   OR INSTR(a.content_markdown, m.object_key) > 0)
         ) THEN 'ACTIVE' ELSE m.status END AS status,
         (
             SELECT COUNT(*) FROM article a
             WHERE a.deleted_at IS NULL
-              AND a.content_markdown LIKE CONCAT('%', m.object_key, '%')
+              AND (a.cover_media_id = m.id
+                   OR INSTR(a.content_markdown, m.object_key) > 0)
         ) AS reference_count,
-        m.created_by, m.created_at
+        m.unreferenced_at, m.delete_attempts, m.next_delete_retry_at,
+        m.last_delete_error, m.created_by, m.created_at, m.deleted_at
     </sql>
 
     <select id="findPage" resultType="com.example.blog.media.model.MediaAssetRecord">
@@ -58,17 +61,123 @@
         WHERE id = #{id} AND deleted_at IS NULL
     </update>
 
-    <update id="softDelete">
+    <update id="reconcileReferences">
         UPDATE media_asset
-        SET status = 'DELETED',
-            deleted_at = CURRENT_TIMESTAMP(3)
+        SET reference_count = (
+                SELECT COUNT(*)
+                FROM article a
+                WHERE a.deleted_at IS NULL
+                  AND (a.cover_media_id = media_asset.id
+                       OR INSTR(a.content_markdown, media_asset.object_key) > 0)
+            ),
+            unreferenced_at = CASE
+                WHEN EXISTS (
+                    SELECT 1
+                    FROM article a
+                    WHERE a.deleted_at IS NULL
+                      AND (a.cover_media_id = media_asset.id
+                           OR INSTR(a.content_markdown, media_asset.object_key) > 0)
+                ) THEN NULL
+                WHEN status = 'ACTIVE' THEN #{now}
+                WHEN unreferenced_at IS NULL THEN created_at
+                ELSE unreferenced_at
+            END,
+            status = CASE
+                WHEN EXISTS (
+                    SELECT 1
+                    FROM article a
+                    WHERE a.deleted_at IS NULL
+                      AND (a.cover_media_id = media_asset.id
+                           OR INSTR(a.content_markdown, media_asset.object_key) > 0)
+                ) THEN 'ACTIVE'
+                WHEN status = 'ACTIVE' THEN 'PENDING'
+                ELSE status
+            END
+        WHERE deleted_at IS NULL
+          AND status IN ('PENDING', 'ACTIVE', 'ORPHAN')
+    </update>
+
+    <update id="markOrphans">
+        UPDATE media_asset
+        SET status = 'ORPHAN'
+        WHERE deleted_at IS NULL
+          AND status = 'PENDING'
+          AND reference_count = 0
+          AND unreferenced_at IS NOT NULL
+          AND unreferenced_at &lt;= #{cutoff}
+    </update>
+
+    <select id="findDeleteCandidates" resultType="com.example.blog.media.model.MediaAssetRecord">
+        SELECT <include refid="columns"/>
+        FROM media_asset m
+        WHERE (m.status = 'ORPHAN' AND m.deleted_at IS NULL)
+           OR (m.status IN ('DELETE_FAILED', 'DELETING')
+               AND m.next_delete_retry_at &lt;= #{now})
+        ORDER BY
+            CASE WHEN m.status = 'ORPHAN' THEN 0 ELSE 1 END,
+            COALESCE(m.next_delete_retry_at, m.unreferenced_at, m.created_at),
+            m.id
+        LIMIT #{limit}
+    </select>
+
+    <update id="claimManualDelete">
+        UPDATE media_asset
+        SET status = 'DELETING',
+            deleted_at = #{now},
+            delete_attempts = delete_attempts + 1,
+            next_delete_retry_at = #{leaseUntil},
+            last_delete_error = NULL
         WHERE id = #{id}
           AND deleted_at IS NULL
           AND NOT EXISTS (
               SELECT 1
               FROM article a
               WHERE a.deleted_at IS NULL
-                AND a.content_markdown LIKE CONCAT('%', media_asset.object_key, '%')
+                AND (a.cover_media_id = media_asset.id
+                     OR INSTR(a.content_markdown, media_asset.object_key) > 0)
           )
+    </update>
+
+    <update id="claimLifecycleDelete">
+        UPDATE media_asset
+        SET status = 'DELETING',
+            deleted_at = COALESCE(deleted_at, #{now}),
+            delete_attempts = delete_attempts + 1,
+            next_delete_retry_at = #{leaseUntil},
+            last_delete_error = NULL
+        WHERE id = #{id}
+          AND status = #{expectedStatus}
+          AND (
+              (#{expectedStatus} = 'ORPHAN'
+                  AND deleted_at IS NULL
+                  AND NOT EXISTS (
+                      SELECT 1
+                      FROM article a
+                      WHERE a.deleted_at IS NULL
+                        AND (a.cover_media_id = media_asset.id
+                             OR INSTR(a.content_markdown, media_asset.object_key) > 0)
+                  ))
+              OR
+              (#{expectedStatus} IN ('DELETE_FAILED', 'DELETING')
+                  AND next_delete_retry_at &lt;= #{now})
+          )
+    </update>
+
+    <update id="markDeleteComplete">
+        UPDATE media_asset
+        SET status = 'DELETED',
+            next_delete_retry_at = NULL,
+            last_delete_error = NULL
+        WHERE id = #{id}
+          AND status = 'DELETING'
+    </update>
+
+    <update id="markDeleteFailed">
+        UPDATE media_asset
+        SET status = 'DELETE_FAILED',
+            next_delete_retry_at = #{nextRetryAt},
+            last_delete_error = #{error}
+        WHERE id = #{id}
+          AND status = 'DELETING'
     </update>
 </mapper>

@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
+import { useAuthStore } from '../stores/auth'
+
 const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -50,12 +52,23 @@ const router = createRouter({
       name: 'media',
       component: () => import('../views/MediaView.vue'),
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/comments',
+      name: 'comments',
+      component: () => import('../views/CommentModerationView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/operation-logs',
+      name: 'operation-logs',
+      component: () => import('../views/OperationLogView.vue'),
+      meta: { requiresAuth: true }
     }
   ]
 })
 
 router.beforeEach(async (to) => {
-  const { useAuthStore } = await import('../stores/auth')
   const auth = useAuthStore()
   const signedIn = await auth.restore()
 

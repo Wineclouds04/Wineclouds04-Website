@@ -1,11 +1,29 @@
 <script setup lang="ts">
 const api = useBlogApi()
 const { data, error } = await useAsyncData('home', () => api.home())
+const avatarSrc = '/images/cagewang-avatar.png'
+
+const shownArticles = computed(() => data.value?.latest.slice(0, 8) || [])
+const categoryCount = computed(() => data.value?.categories.length || 0)
+const tagCount = computed(() => data.value?.tags.length || 0)
+const siteStats = computed(() => import.meta.dev && !data.value?.latest.length
+  ? {
+      onlineVisitors: 1,
+      todayViews: 8,
+      totalViews: 9966,
+      totalVisitors: 680
+    }
+  : {
+      onlineVisitors: 0,
+      todayViews: 0,
+      totalViews: 0,
+      totalVisitors: 0
+    })
 
 useSeoMeta({
-  title: '余白札记 · 记录技术、生活与灵光',
+  title: 'CageWang‘s Blog · 记录技术、生活与灵光',
   description: '在代码、生活和那些尚未命名的念头之间，留一点呼吸。',
-  ogTitle: '余白札记',
+  ogTitle: 'CageWang‘s Blog',
   ogDescription: '记录技术、生活与灵光的个人博客。',
   ogType: 'website',
   twitterCard: 'summary_large_image'
@@ -13,75 +31,82 @@ useSeoMeta({
 </script>
 
 <template>
-  <div>
-    <section class="home-hero">
-      <div class="hero-orbit orbit-one" />
-      <div class="hero-orbit orbit-two" />
-      <div class="hero-content content-width">
-        <p class="eyebrow">PERSONAL NOTES · 自在生长</p>
-        <h1>在喧闹世界里，<br><em>留一页余白。</em></h1>
-        <p class="hero-lead">
-          写代码，也写沿途的风。这里收集技术思考、生活观察，以及偶尔撞进脑海的微小灵光。
-        </p>
-        <div class="hero-actions">
-          <NuxtLink class="button primary" to="/blog">翻阅文章 <span>↗</span></NuxtLink>
-          <NuxtLink class="text-link" to="/archive">从时间里寻找 <span>→</span></NuxtLink>
-        </div>
-      </div>
-      <div class="hero-note">
-        <span>{{ data?.articleCount || '—' }}</span>
-        <small>篇公开札记</small>
-      </div>
-    </section>
+  <div class="reference-home">
+    <section
+      class="reference-hero"
+      aria-label="黄昏海边车站"
+    />
 
-    <section class="section content-width">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">LATEST NOTES</p>
-          <h2>最近写下的</h2>
-        </div>
-        <NuxtLink class="text-link" to="/blog">查看全部 <span>→</span></NuxtLink>
-      </div>
+    <section class="home-feed-section">
+      <div class="home-feed-layout">
+        <div class="home-article-column">
+          <template v-if="shownArticles.length">
+            <ArticleCard
+              v-for="(article, index) in shownArticles"
+              :key="article.id"
+              :article="article"
+              :index="index"
+            />
+          </template>
 
-      <div v-if="data?.latest.length" class="article-grid">
-        <ArticleCard
-          v-for="(article, index) in data.latest.slice(0, 6)"
-          :key="article.id"
-          :article="article"
-          :index="index"
-          :featured="index === 0"
-        />
-      </div>
-      <EmptyState
-        v-else
-        :description="error ? '暂时无法连接内容服务，请稍后再试。' : undefined"
-      />
-    </section>
+          <EmptyState
+            v-else
+            :description="error ? '暂时无法连接内容服务，请稍后再试。' : undefined"
+          />
+        </div>
 
-    <section v-if="data?.categories.length || data?.tags.length" class="discovery-section">
-      <div class="content-width discovery-grid">
-        <div>
-          <p class="eyebrow">BY SUBJECT</p>
-          <h2>循着主题，慢慢逛</h2>
-          <p>分类是书架，标签是藏在页边的小路。</p>
-        </div>
-        <div class="taxonomy-cloud">
-          <NuxtLink
-            v-for="category in data.categories"
-            :key="`category-${category.id}`"
-            :to="`/category/${category.slug}`"
-          >
-            {{ category.name }} <sup>{{ category.articleCount }}</sup>
-          </NuxtLink>
-          <NuxtLink
-            v-for="tag in data.tags.slice(0, 8)"
-            :key="`tag-${tag.id}`"
-            class="tag-pill"
-            :to="`/tag/${tag.slug}`"
-          >
-            # {{ tag.name }}
-          </NuxtLink>
-        </div>
+        <aside class="home-sidebar">
+          <section class="profile-card">
+            <img
+              class="profile-avatar"
+              :src="avatarSrc"
+              alt="CageWang 的黑猫头像"
+            >
+            <h2>CageWang</h2>
+            <p>本质哈基米</p>
+            <span class="profile-location">
+              <i class="iconfont icon-position" aria-hidden="true" />
+              中国 · 上海
+            </span>
+
+            <div class="profile-counts">
+              <NuxtLink to="/blog">
+                <strong>{{ data?.articleCount || 0 }}</strong>
+                <span>文章</span>
+              </NuxtLink>
+              <NuxtLink to="/category">
+                <strong>{{ categoryCount }}</strong>
+                <span>分类</span>
+              </NuxtLink>
+              <NuxtLink to="/tag">
+                <strong>{{ tagCount }}</strong>
+                <span>标签</span>
+              </NuxtLink>
+            </div>
+
+            <div class="profile-links">
+              <NuxtLink to="/archive" aria-label="文章归档">
+                <i class="iconfont icon-guidang" aria-hidden="true" />
+              </NuxtLink>
+              <a href="/rss.xml" aria-label="RSS">
+                <i class="iconfont icon-rssdingyue" aria-hidden="true" />
+              </a>
+            </div>
+          </section>
+
+          <section class="site-stat-card">
+            <h2>
+              <i class="iconfont icon-eye" aria-hidden="true" />
+              站点统计
+            </h2>
+            <dl>
+              <div><dt>在线访客</dt><dd>{{ siteStats.onlineVisitors.toLocaleString() }}</dd></div>
+              <div><dt>今日浏览量</dt><dd>{{ siteStats.todayViews.toLocaleString() }}</dd></div>
+              <div><dt>总浏览量</dt><dd>{{ siteStats.totalViews.toLocaleString() }}</dd></div>
+              <div><dt>总访客量</dt><dd>{{ siteStats.totalVisitors.toLocaleString() }}</dd></div>
+            </dl>
+          </section>
+        </aside>
       </div>
     </section>
   </div>

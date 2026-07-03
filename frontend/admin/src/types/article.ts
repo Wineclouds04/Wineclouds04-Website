@@ -1,5 +1,5 @@
 export type ArticleStatus = 'DRAFT' | 'SCHEDULED' | 'PUBLISHED' | 'ARCHIVED'
-export type ArticleVisibility = 'PUBLIC' | 'PRIVATE'
+type ArticleVisibility = 'PUBLIC' | 'PRIVATE'
 
 export type ArticleListItem = {
   id: number

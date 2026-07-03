@@ -1,26 +1,40 @@
 <script setup lang="ts">
 const route = useRoute()
 const theme = useTheme()
+const scrolled = ref(false)
 
 const links = [
-  { label: '首页', to: '/' },
-  { label: '文章', to: '/blog' },
-  { label: '分类', to: '/category' },
-  { label: '标签', to: '/tag' },
-  { label: '归档', to: '/archive' }
+  { label: '首页', to: '/', icon: 'icon-zhuye' },
+  { label: '文章', to: '/blog', icon: 'icon-boke' },
+  { label: '分类', to: '/category', icon: 'icon-folder' },
+  { label: '标签', to: '/tag', icon: 'icon-biaoqian' },
+  { label: '归档', to: '/archive', icon: 'icon-guidang' }
 ]
 
 const isActive = (to: string) =>
   to === '/' ? route.path === '/' : route.path.startsWith(to)
+
+const updateHeader = () => {
+  scrolled.value = window.scrollY > 48
+}
+
+onMounted(() => {
+  updateHeader()
+  window.addEventListener('scroll', updateHeader, { passive: true })
+})
+
+onUnmounted(() => window.removeEventListener('scroll', updateHeader))
 </script>
 
 <template>
   <div class="site-shell">
-    <header class="site-header">
+    <header
+      class="site-header"
+      :class="{ 'over-hero': route.path === '/', scrolled }"
+    >
       <div class="nav-wrap">
         <NuxtLink class="brand" to="/" aria-label="回到首页">
-          <span class="brand-mark">余</span>
-          <span>余白札记</span>
+          <span>CageWang‘s Blog</span>
         </NuxtLink>
 
         <nav class="desktop-nav" aria-label="主导航">
@@ -30,30 +44,22 @@ const isActive = (to: string) =>
             :to="link.to"
             :class="{ active: isActive(link.to) }"
           >
+            <i class="iconfont" :class="link.icon" aria-hidden="true" />
             {{ link.label }}
           </NuxtLink>
         </nav>
 
         <div class="nav-actions">
           <NuxtLink class="icon-button" to="/search" aria-label="搜索文章">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="11" cy="11" r="6.5" />
-              <path d="m16 16 4 4" />
-            </svg>
+            <i class="iconfont icon-sousuo" aria-hidden="true" />
           </NuxtLink>
           <button
-            class="icon-button"
+            class="theme-button"
             type="button"
             :aria-label="theme.isDark.value ? '切换到浅色模式' : '切换到深色模式'"
             @click="theme.toggle"
           >
-            <svg v-if="theme.isDark.value" viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="12" cy="12" r="4" />
-              <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
-            </svg>
-            <svg v-else viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M20.5 15.5A8.5 8.5 0 0 1 8.5 3.5a8.5 8.5 0 1 0 12 12Z" />
-            </svg>
+            {{ theme.isDark.value ? '浅色' : '深色' }}
           </button>
         </div>
       </div>
@@ -65,6 +71,7 @@ const isActive = (to: string) =>
           :to="link.to"
           :class="{ active: isActive(link.to) }"
         >
+          <i class="iconfont" :class="link.icon" aria-hidden="true" />
           {{ link.label }}
         </NuxtLink>
       </nav>
@@ -76,11 +83,12 @@ const isActive = (to: string) =>
 
     <footer class="site-footer">
       <div>
-        <p class="footer-title">余白札记</p>
+        <p class="footer-title">CageWang‘s Blog</p>
         <p>在代码、生活和那些尚未命名的念头之间，留一点呼吸。</p>
       </div>
       <div class="footer-links">
         <NuxtLink to="/archive">归档</NuxtLink>
+        <NuxtLink to="/privacy">隐私</NuxtLink>
         <a href="/rss.xml">RSS</a>
         <a href="/sitemap.xml">Sitemap</a>
       </div>

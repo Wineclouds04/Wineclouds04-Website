@@ -2,7 +2,9 @@ package com.example.blog.media.service;
 
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.HexFormat;
 import java.util.UUID;
@@ -13,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.example.blog.media.config.OssProperties;
+import com.example.blog.media.config.MediaLifecycleProperties;
 import com.example.blog.media.dto.MediaAssetResponse;
 import com.example.blog.media.dto.MediaConfigResponse;
 import com.example.blog.media.dto.MediaPageResponse;
@@ -29,17 +32,20 @@ public class MediaService {
     private final ObjectStorage objectStorage;
     private final ImageInspector imageInspector;
     private final OssProperties properties;
+    private final MediaLifecycleProperties lifecycleProperties;
 
     public MediaService(
             MediaMapper mediaMapper,
             ObjectStorage objectStorage,
             ImageInspector imageInspector,
-            OssProperties properties
+            OssProperties properties,
+            MediaLifecycleProperties lifecycleProperties
     ) {
         this.mediaMapper = mediaMapper;
         this.objectStorage = objectStorage;
         this.imageInspector = imageInspector;
         this.properties = properties;
+        this.lifecycleProperties = lifecycleProperties;
     }
 
     public MediaConfigResponse config() {
@@ -123,16 +129,54 @@ public class MediaService {
         return findById(id);
     }
 
-    @Transactional
     public void delete(Long id) {
+        if (!objectStorage.configured()) {
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "OSS 尚未配置");
+        }
         MediaAssetRecord asset = require(id);
         if (asset.referenceCount() > 0) {
             throw new ApiException(HttpStatus.CONFLICT, "媒体仍被文章引用，不能删除");
         }
-        if (mediaMapper.softDelete(id) == 0) {
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        LocalDateTime leaseUntil = now.plus(lifecycleProperties.safeStaleDeleteTimeout());
+        if (mediaMapper.claimManualDelete(id, now, leaseUntil) == 0) {
             throw new ApiException(HttpStatus.CONFLICT, "媒体仍被引用或已经删除");
         }
-        objectStorage.delete(asset.objectKey());
+        deleteClaimed(asset.id(), asset.objectKey(), asset.deleteAttempts() + 1, now);
+    }
+
+    boolean processDeleteCandidate(MediaAssetRecord asset, LocalDateTime now) {
+        LocalDateTime leaseUntil = now.plus(lifecycleProperties.safeStaleDeleteTimeout());
+        if (mediaMapper.claimLifecycleDelete(
+                asset.id(),
+                asset.status(),
+                now,
+                leaseUntil
+        ) == 0) {
+            return false;
+        }
+        deleteClaimed(asset.id(), asset.objectKey(), asset.deleteAttempts() + 1, now);
+        return true;
+    }
+
+    private void deleteClaimed(
+            Long id,
+            String objectKey,
+            int attempt,
+            LocalDateTime now
+    ) {
+        try {
+            objectStorage.delete(objectKey);
+            mediaMapper.markDeleteComplete(id);
+        } catch (RuntimeException exception) {
+            Duration delay = retryDelay(attempt);
+            mediaMapper.markDeleteFailed(
+                    id,
+                    now.plus(delay),
+                    safeError(exception)
+            );
+            throw exception;
+        }
     }
 
     private MediaAssetResponse findById(Long id) {
@@ -194,6 +238,19 @@ public class MediaService {
 
     private String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private Duration retryDelay(int attempt) {
+        int exponent = Math.min(Math.max(0, attempt - 1), 6);
+        return lifecycleProperties.safeDeleteRetryBaseDelay().multipliedBy(1L << exponent);
+    }
+
+    private String safeError(RuntimeException exception) {
+        String message = exception.getMessage();
+        String value = message == null || message.isBlank()
+                ? exception.getClass().getSimpleName()
+                : message;
+        return value.substring(0, Math.min(value.length(), 1000));
     }
 
     private ApiException notFound() {

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.blog.interaction.mapper.InteractionMapper">
+    <select id="articleIsPublic" resultType="boolean">
+        SELECT EXISTS(
+            SELECT 1 FROM article
+            WHERE id = #{articleId}
+              AND deleted_at IS NULL
+              AND status = 'PUBLISHED'
+              AND visibility = 'PUBLIC'
+        )
+    </select>
+
+    <select id="findState" resultType="com.example.blog.interaction.dto.InteractionState">
+        SELECT a.like_count, a.comment_count,
+               EXISTS(
+                   SELECT 1 FROM article_like al
+                   WHERE al.article_id = a.id
+                     AND al.anonymous_key_hash = #{anonymousKeyHash}
+               ) AS liked
+        FROM article a
+        WHERE a.id = #{articleId}
+          AND a.deleted_at IS NULL
+          AND a.status = 'PUBLISHED'
+          AND a.visibility = 'PUBLIC'
+        LIMIT 1
+    </select>
+
+    <insert id="insertLike">
+        INSERT IGNORE INTO article_like (article_id, anonymous_key_hash)
+        VALUES (#{articleId}, #{anonymousKeyHash})
+    </insert>
+
+    <delete id="deleteLike">
+        DELETE FROM article_like
+        WHERE article_id = #{articleId} AND anonymous_key_hash = #{anonymousKeyHash}
+    </delete>
+
+    <update id="refreshLikeCount">
+        UPDATE article a
+        SET a.like_count = (
+            SELECT COUNT(*) FROM article_like al WHERE al.article_id = a.id
+        )
+        WHERE a.id = #{articleId}
+    </update>
+</mapper>

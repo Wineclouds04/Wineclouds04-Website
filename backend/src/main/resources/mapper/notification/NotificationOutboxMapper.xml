@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.blog.notification.mapper.NotificationOutboxMapper">
+    <insert id="insert">
+        INSERT INTO notification_outbox (
+            event_type, recipient_ciphertext, template_name, payload_json,
+            status, retry_count, next_attempt_at
+        )
+        VALUES (
+            #{eventType}, #{recipientCiphertext}, #{templateName}, #{payloadJson},
+            'PENDING', 0, #{nextAttemptAt}
+        )
+    </insert>
+
+    <select id="findPending" resultType="com.example.blog.notification.model.NotificationOutboxRecord">
+        SELECT id, event_type, recipient_ciphertext, template_name, payload_json,
+               status, retry_count
+        FROM notification_outbox
+        WHERE status IN ('PENDING', 'RETRY')
+          AND next_attempt_at &lt;= CURRENT_TIMESTAMP(3)
+        ORDER BY created_at
+        LIMIT #{limit}
+    </select>
+
+    <update id="markSent">
+        UPDATE notification_outbox
+        SET status = 'SENT', updated_at = CURRENT_TIMESTAMP(3), last_error = NULL
+        WHERE id = #{id} AND status IN ('PENDING', 'RETRY')
+    </update>
+
+    <update id="markRetry">
+        UPDATE notification_outbox
+        SET status = #{status},
+            retry_count = retry_count + 1,
+            next_attempt_at = #{nextAttemptAt},
+            last_error = #{lastError},
+            updated_at = CURRENT_TIMESTAMP(3)
+        WHERE id = #{id} AND status IN ('PENDING', 'RETRY')
+    </update>
+
+    <select id="countPending" resultType="long">
+        SELECT COUNT(*) FROM notification_outbox WHERE status IN ('PENDING', 'RETRY')
+    </select>
+</mapper>

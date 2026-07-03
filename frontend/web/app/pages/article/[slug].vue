@@ -17,10 +17,43 @@ if (error.value) {
 const canonical = computed(() =>
   article.value?.canonicalUrl || `${config.public.siteUrl}/article/${slug}`
 )
+const comments = ref<import('~/types/blog').PublicComment[]>([])
+const interaction = ref<import('~/types/blog').InteractionState | null>(null)
+const liking = ref(false)
+const interactionError = ref('')
+
+if (article.value) {
+  comments.value = await api.comments(article.value.id)
+}
+
+onMounted(async () => {
+  if (!article.value) return
+  void api.recordView(article.value.id).catch(() => undefined)
+  try {
+    interaction.value = await api.interaction(article.value.id)
+  } catch {
+    interactionError.value = '点赞状态暂时不可用'
+  }
+})
+
+const toggleLike = async () => {
+  if (!article.value || liking.value) return
+  liking.value = true
+  interactionError.value = ''
+  try {
+    interaction.value = interaction.value?.liked
+      ? await api.unlike(article.value.id)
+      : await api.like(article.value.id)
+  } catch (cause: any) {
+    interactionError.value = cause?.data?.detail || '操作失败，请稍后重试'
+  } finally {
+    liking.value = false
+  }
+}
 
 useSeoMeta({
-  title: () => article.value?.metaTitle || `${article.value?.title || '文章'} · 余白札记`,
-  description: () => article.value?.metaDescription || article.value?.summary || '余白札记文章',
+  title: () => article.value?.metaTitle || `${article.value?.title || '文章'} · CageWang‘s Blog`,
+  description: () => article.value?.metaDescription || article.value?.summary || 'CageWang‘s Blog 文章',
   ogTitle: () => article.value?.metaTitle || article.value?.title,
   ogDescription: () => article.value?.metaDescription || article.value?.summary || undefined,
   ogType: 'article',
@@ -40,8 +73,8 @@ useHead({
       datePublished: article.value?.publishedAt,
       dateModified: article.value?.updatedAt,
       mainEntityOfPage: canonical.value,
-      author: { '@type': 'Person', name: '余白札记' },
-      publisher: { '@type': 'Organization', name: '余白札记' }
+      author: { '@type': 'Person', name: 'CageWang' },
+      publisher: { '@type': 'Organization', name: 'CageWang‘s Blog' }
     }))
   }]
 })
@@ -89,21 +122,45 @@ useHead({
             </NuxtLink>
           </div>
           <p>感谢你读到这里。愿这页文字，恰好对你有一点用。</p>
+          <button
+            class="like-button"
+            :class="{ liked: interaction?.liked }"
+            type="button"
+            :disabled="liking"
+            @click="toggleLike"
+          >
+            <i class="iconfont icon-dianzan" aria-hidden="true" />
+            {{ interaction?.liked ? '已喜欢' : '喜欢这篇' }}
+            <b>{{ interaction?.likeCount || 0 }}</b>
+          </button>
+          <small v-if="interactionError" class="interaction-error">{{ interactionError }}</small>
         </footer>
 
         <nav v-if="adjacent?.previous || adjacent?.next" class="article-navigation">
           <NuxtLink v-if="adjacent.previous" :to="`/article/${adjacent.previous.slug}`">
-            <small>← 上一篇</small>
+            <small><i class="iconfont icon-arrow-left" aria-hidden="true" /> 上一篇</small>
             <strong>{{ adjacent.previous.title }}</strong>
           </NuxtLink>
           <span v-else />
           <NuxtLink v-if="adjacent.next" class="next" :to="`/article/${adjacent.next.slug}`">
-            <small>下一篇 →</small>
+            <small>下一篇 <i class="iconfont icon-arrow-right" aria-hidden="true" /></small>
             <strong>{{ adjacent.next.title }}</strong>
           </NuxtLink>
         </nav>
       </div>
     </div>
+
+    <section v-if="article.allowComment" class="interaction-section reading-width">
+      <div class="interaction-heading">
+        <div>
+          <p class="eyebrow">CONVERSATION</p>
+          <h2>回应与回声</h2>
+        </div>
+        <span>{{ interaction?.commentCount ?? comments.length }} 条公开评论</span>
+      </div>
+      <CommentForm :article-id="article.id" />
+      <CommentThread :comments="comments" :article-id="article.id" />
+    </section>
 
     <section v-if="related?.length" class="related-section">
       <div class="content-width">

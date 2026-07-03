@@ -111,7 +111,7 @@ onMounted(load)
   <div class="content-page taxonomy-page">
     <header class="content-header">
       <div>
-        <RouterLink class="back-link" to="/">← 返回总览</RouterLink>
+        <RouterLink class="back-link" to="/">返回总览</RouterLink>
         <p class="kicker">CONTENT / TAXONOMY</p>
         <h1>{{ label }}管理</h1>
       </div>

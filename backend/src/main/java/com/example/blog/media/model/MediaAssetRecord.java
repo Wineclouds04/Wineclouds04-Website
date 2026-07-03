@@ -15,7 +15,12 @@ public record MediaAssetRecord(
         String altText,
         String status,
         int referenceCount,
+        LocalDateTime unreferencedAt,
+        int deleteAttempts,
+        LocalDateTime nextDeleteRetryAt,
+        String lastDeleteError,
         Long createdBy,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        LocalDateTime deletedAt
 ) {
 }

@@ -5,6 +5,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.HexFormat;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -19,14 +22,25 @@ import com.example.blog.article.dto.PublicHomeResponse;
 import com.example.blog.article.dto.PublicTaxonomyItem;
 import com.example.blog.article.mapper.PublicArticleMapper;
 import com.example.blog.shared.error.ApiException;
+import com.example.blog.shared.cache.PublicContentCache;
+import com.example.blog.shared.config.RuntimeProperties;
+import com.fasterxml.jackson.core.type.TypeReference;
 
 @Service
 public class PublicArticleService {
 
     private final PublicArticleMapper mapper;
+    private final PublicContentCache cache;
+    private final RuntimeProperties runtime;
 
-    public PublicArticleService(PublicArticleMapper mapper) {
+    public PublicArticleService(
+            PublicArticleMapper mapper,
+            PublicContentCache cache,
+            RuntimeProperties runtime
+    ) {
         this.mapper = mapper;
+        this.cache = cache;
+        this.runtime = runtime;
     }
 
     public PublicArticlePage findArticles(
@@ -41,22 +55,43 @@ public class PublicArticleService {
         String safeTag = blankToNull(tagSlug);
         int safePage = Math.max(page, 1);
         int safePageSize = Math.clamp(pageSize, 1, 50);
-        long total = mapper.countArticles(safeKeyword, safeCategory, safeTag);
-        long offset = (long) (safePage - 1) * safePageSize;
-        int totalPages = total == 0 ? 0 : (int) Math.ceil((double) total / safePageSize);
-        return new PublicArticlePage(
-                mapper.findArticles(safeKeyword, safeCategory, safeTag, offset, safePageSize),
-                total,
-                safePage,
-                safePageSize,
-                totalPages
+        String key = "article:list:" + digest(String.join(
+                "|",
+                String.valueOf(safeKeyword),
+                String.valueOf(safeCategory),
+                String.valueOf(safeTag),
+                String.valueOf(safePage),
+                String.valueOf(safePageSize)
+        ));
+        return cache.get(
+                key,
+                runtime.listCacheTtl(),
+                PublicArticlePage.class,
+                () -> loadArticles(
+                        safeKeyword,
+                        safeCategory,
+                        safeTag,
+                        safePage,
+                        safePageSize
+                )
         );
     }
 
     public PublicArticleDetail findBySlug(String slug) {
-        PublicArticleRecord article = mapper.findBySlug(slug)
-                .orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "文章不存在"));
-        return withTags(article);
+        String normalized = slug == null ? "" : slug.trim();
+        return cache.get(
+                "article:slug:" + digest(normalized),
+                runtime.articleCacheTtl(),
+                PublicArticleDetail.class,
+                () -> {
+                    PublicArticleRecord article = mapper.findBySlug(normalized)
+                            .orElseThrow(() -> new ApiException(
+                                    HttpStatus.NOT_FOUND,
+                                    "文章不存在"
+                            ));
+                    return withTags(article);
+                }
+        );
     }
 
     public Optional<String> findRedirect(String slug) {
@@ -64,32 +99,42 @@ public class PublicArticleService {
     }
 
     public PublicHomeResponse home() {
-        PublicArticlePage page = findArticles(null, null, null, 1, 9);
-        List<PublicArticleCard> featured = page.items().stream()
-                .filter(PublicArticleCard::pinned)
-                .limit(3)
-                .toList();
-        if (featured.isEmpty()) {
-            featured = page.items().stream().limit(3).toList();
-        }
-        return new PublicHomeResponse(
-                featured,
-                page.items(),
-                mapper.findCategories(),
-                mapper.findTags(),
-                page.total()
+        return cache.get(
+                "home",
+                runtime.listCacheTtl(),
+                PublicHomeResponse.class,
+                this::loadHome
         );
     }
 
     public List<PublicTaxonomyItem> categories() {
-        return mapper.findCategories();
+        return cache.get(
+                "taxonomy:categories",
+                runtime.taxonomyCacheTtl(),
+                new TypeReference<>() { },
+                mapper::findCategories
+        );
     }
 
     public List<PublicTaxonomyItem> tags() {
-        return mapper.findTags();
+        return cache.get(
+                "taxonomy:tags",
+                runtime.taxonomyCacheTtl(),
+                new TypeReference<>() { },
+                mapper::findTags
+        );
     }
 
     public List<PublicArchiveMonth> archives() {
+        return cache.get(
+                "archives",
+                runtime.listCacheTtl(),
+                new TypeReference<>() { },
+                this::loadArchives
+        );
+    }
+
+    private List<PublicArchiveMonth> loadArchives() {
         List<PublicArticleCard> articles = mapper.findArticles(null, null, null, 0, 1000);
         Map<String, List<PublicArticleCard>> groups = new LinkedHashMap<>();
         for (PublicArticleCard article : articles) {
@@ -105,16 +150,67 @@ public class PublicArticleService {
     }
 
     public PublicArticleNavigation adjacent(String slug) {
-        PublicArticleDetail article = findBySlug(slug);
-        return new PublicArticleNavigation(
-                mapper.findPrevious(article.publishedAt(), article.id()).orElse(null),
-                mapper.findNext(article.publishedAt(), article.id()).orElse(null)
+        return cache.get(
+                "article:adjacent:" + digest(slug),
+                runtime.listCacheTtl(),
+                PublicArticleNavigation.class,
+                () -> {
+                    PublicArticleDetail article = findBySlug(slug);
+                    return new PublicArticleNavigation(
+                            mapper.findPrevious(article.publishedAt(), article.id()).orElse(null),
+                            mapper.findNext(article.publishedAt(), article.id()).orElse(null)
+                    );
+                }
         );
     }
 
     public List<PublicArticleCard> related(String slug) {
-        PublicArticleDetail article = findBySlug(slug);
-        return mapper.findRelated(article.id(), article.categorySlug(), 3);
+        return cache.get(
+                "article:related:" + digest(slug),
+                runtime.listCacheTtl(),
+                new TypeReference<>() { },
+                () -> {
+                    PublicArticleDetail article = findBySlug(slug);
+                    return mapper.findRelated(article.id(), article.categorySlug(), 3);
+                }
+        );
+    }
+
+    private PublicArticlePage loadArticles(
+            String keyword,
+            String category,
+            String tag,
+            int page,
+            int pageSize
+    ) {
+        long total = mapper.countArticles(keyword, category, tag);
+        long offset = (long) (page - 1) * pageSize;
+        int totalPages = total == 0 ? 0 : (int) Math.ceil((double) total / pageSize);
+        return new PublicArticlePage(
+                mapper.findArticles(keyword, category, tag, offset, pageSize),
+                total,
+                page,
+                pageSize,
+                totalPages
+        );
+    }
+
+    private PublicHomeResponse loadHome() {
+        PublicArticlePage page = findArticles(null, null, null, 1, 9);
+        List<PublicArticleCard> featured = page.items().stream()
+                .filter(PublicArticleCard::pinned)
+                .limit(3)
+                .toList();
+        if (featured.isEmpty()) {
+            featured = page.items().stream().limit(3).toList();
+        }
+        return new PublicHomeResponse(
+                featured,
+                page.items(),
+                categories(),
+                tags(),
+                page.total()
+        );
     }
 
     private PublicArticleDetail withTags(PublicArticleRecord article) {
@@ -138,5 +234,16 @@ public class PublicArticleService {
 
     private String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String digest(String value) {
+        try {
+            return HexFormat.of().formatHex(
+                    MessageDigest.getInstance("SHA-256")
+                            .digest(value.getBytes(StandardCharsets.UTF_8))
+            ).substring(0, 32);
+        } catch (Exception exception) {
+            throw new IllegalStateException("SHA-256 is unavailable", exception);
+        }
     }
 }

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { RouterLink, useRouter } from 'vue-router'
+import { computed, onMounted, ref, watch } from 'vue'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
 
 import { ApiError } from '@personal-blog/api-client'
 
@@ -9,10 +9,11 @@ import { useAuthStore } from '../stores/auth'
 import type { ArticleListItem, ArticlePage, ArticleStatus } from '../types/article'
 
 const router = useRouter()
+const route = useRoute()
 const auth = useAuthStore()
 const articles = ref<ArticleListItem[]>([])
 const status = ref('')
-const keyword = ref('')
+const keyword = ref(typeof route.query.keyword === 'string' ? route.query.keyword : '')
 const loading = ref(false)
 const error = ref('')
 const page = ref(1)
@@ -81,13 +82,21 @@ const remove = async (article: ArticleListItem) => {
 }
 
 onMounted(load)
+watch(
+  () => route.query.keyword,
+  (value) => {
+    keyword.value = typeof value === 'string' ? value : ''
+    page.value = 1
+    void load()
+  }
+)
 </script>
 
 <template>
   <div class="content-page">
     <header class="content-header">
       <div>
-        <RouterLink class="back-link" to="/">← 返回总览</RouterLink>
+        <RouterLink class="back-link" to="/">返回总览</RouterLink>
         <p class="kicker">CONTENT / ARTICLES</p>
         <h1>文章管理</h1>
       </div>

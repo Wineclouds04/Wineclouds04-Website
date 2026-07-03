@@ -3,7 +3,12 @@ import type {
   ArticleDetail,
   ArticleNavigation,
   ArticlePage,
+  CaptchaChallenge,
+  CommentInput,
+  CommentSubmitResponse,
   HomeResponse,
+  InteractionState,
+  PublicComment,
   TaxonomyItem
 } from '~/types/blog'
 
@@ -30,6 +35,32 @@ export function useBlogApi() {
       request<ArticlePage>(`/public/tags/${encodeURIComponent(slug)}/articles`, { page }),
     archives: () => request<ArchiveMonth[]>('/public/archives'),
     search: (keyword: string, page: number) =>
-      request<ArticlePage>('/public/search', { keyword, page })
+      request<ArticlePage>('/public/search', { keyword, page }),
+    captcha: () => request<CaptchaChallenge>('/public/captcha'),
+    comments: (articleId: number) =>
+      request<PublicComment[]>(`/public/articles/${articleId}/comments`),
+    submitComment: (articleId: number, body: CommentInput) =>
+      $fetch<CommentSubmitResponse>(`/public/articles/${articleId}/comments`, {
+        baseURL,
+        method: 'POST',
+        body
+      }),
+    interaction: (articleId: number) =>
+      $fetch<InteractionState>(`/public/articles/${articleId}/interaction`, { baseURL }),
+    like: (articleId: number) =>
+      $fetch<InteractionState>(`/public/articles/${articleId}/likes`, {
+        baseURL,
+        method: 'POST'
+      }),
+    unlike: (articleId: number) =>
+      $fetch<InteractionState>(`/public/articles/${articleId}/likes`, {
+        baseURL,
+        method: 'DELETE'
+      }),
+    recordView: (articleId: number) =>
+      $fetch<{ accepted: boolean }>(`/public/articles/${articleId}/views`, {
+        baseURL,
+        method: 'POST'
+      })
   }
 }

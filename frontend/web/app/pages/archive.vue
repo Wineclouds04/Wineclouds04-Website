@@ -4,7 +4,7 @@ const { data } = await useAsyncData('archives', () => api.archives())
 const count = computed(() => data.value?.reduce((total, group) => total + group.articles.length, 0) || 0)
 
 useSeoMeta({
-  title: '文章归档 · 余白札记',
+  title: '文章归档 · CageWang‘s Blog',
   description: '沿着时间线浏览所有公开文章。'
 })
 </script>
@@ -33,7 +33,7 @@ useSeoMeta({
               <time>{{ formatShortDate(article.publishedAt) }}</time>
               <span>{{ article.title }}</span>
               <small>{{ article.readingMinutes }} min</small>
-              <b>↗</b>
+              <i class="iconfont icon-arrow-right" aria-hidden="true" />
             </NuxtLink>
           </div>
         </section>

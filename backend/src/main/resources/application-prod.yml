@@ -1,0 +1,60 @@
+spring:
+  datasource:
+    hikari:
+      minimum-idle: ${DB_POOL_MIN_IDLE:2}
+      maximum-pool-size: ${DB_POOL_MAX_SIZE:10}
+      connection-timeout: 3000
+      validation-timeout: 1000
+      leak-detection-threshold: ${DB_LEAK_DETECTION_THRESHOLD:0}
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
+server:
+  shutdown: graceful
+  compression:
+    enabled: true
+    mime-types: application/json,application/problem+json,text/html,text/plain,text/css,text/javascript,application/javascript,application/xml
+    min-response-size: 1024
+  tomcat:
+    threads:
+      max: ${TOMCAT_MAX_THREADS:100}
+      min-spare: ${TOMCAT_MIN_SPARE_THREADS:10}
+    max-connections: ${TOMCAT_MAX_CONNECTIONS:2048}
+    accept-count: ${TOMCAT_ACCEPT_COUNT:100}
+
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:false}
+  swagger-ui:
+    enabled: ${SWAGGER_ENABLED:false}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      environment: ${BLOG_ENVIRONMENT:prod}
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+blog:
+  auth:
+    secure-cookies: true
+
+logging:
+  structured:
+    format:
+      console: ecs
+    ecs:
+      service:
+        name: ${spring.application.name}
+        version: ${APP_VERSION:dev}
+        environment: ${BLOG_ENVIRONMENT:prod}
+  level:
+    root: INFO
+    org.springframework.security: WARN

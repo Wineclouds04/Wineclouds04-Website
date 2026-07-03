@@ -25,6 +25,8 @@ import com.example.blog.auth.dto.UserResponse;
 import com.example.blog.auth.service.AuthRequestGuard;
 import com.example.blog.auth.service.AuthService;
 import com.example.blog.auth.service.AuthService.AuthResult;
+import com.example.blog.interaction.service.VisitorContext;
+import com.example.blog.shared.security.RateLimitService;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -39,15 +41,21 @@ public class AuthController {
     private final AuthService authService;
     private final AuthRequestGuard requestGuard;
     private final AuthProperties properties;
+    private final RateLimitService rateLimits;
+    private final VisitorContext visitors;
 
     public AuthController(
             AuthService authService,
             AuthRequestGuard requestGuard,
-            AuthProperties properties
+            AuthProperties properties,
+            RateLimitService rateLimits,
+            VisitorContext visitors
     ) {
         this.authService = authService;
         this.requestGuard = requestGuard;
         this.properties = properties;
+        this.rateLimits = rateLimits;
+        this.visitors = visitors;
     }
 
     @PostMapping("/login")
@@ -56,6 +64,12 @@ public class AuthController {
             HttpServletRequest servletRequest
     ) {
         requestGuard.validateOrigin(servletRequest);
+        rateLimits.enforce(
+                "login",
+                request.username().trim().toLowerCase() + ":" + visitors.ipHash(servletRequest),
+                5,
+                Duration.ofMinutes(15)
+        );
         AuthResult result = authService.login(
                 request.username(),
                 request.password(),
@@ -73,6 +87,12 @@ public class AuthController {
     ) {
         requestGuard.validateOrigin(request);
         requestGuard.validateCsrf(csrfHeader, csrfCookie);
+        rateLimits.enforce(
+                "refresh",
+                csrfCookie == null ? visitors.ipHash(request) : csrfCookie,
+                30,
+                Duration.ofMinutes(1)
+        );
         AuthResult result = authService.refresh(refreshToken, request.getHeader("User-Agent"));
         return withSessionCookies(result);
     }

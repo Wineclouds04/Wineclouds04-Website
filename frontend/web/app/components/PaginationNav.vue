@@ -13,8 +13,14 @@ const target = (page: number) => ({
 
 <template>
   <nav v-if="totalPages > 1" class="pagination" aria-label="分页">
-    <NuxtLink v-if="page > 1" :to="target(page - 1)">← 上一页</NuxtLink>
+    <NuxtLink v-if="page > 1" :to="target(page - 1)">
+      <i class="iconfont icon-arrow-left" aria-hidden="true" />
+      上一页
+    </NuxtLink>
     <span>第 {{ page }} / {{ totalPages }} 页</span>
-    <NuxtLink v-if="page < totalPages" :to="target(page + 1)">下一页 →</NuxtLink>
+    <NuxtLink v-if="page < totalPages" :to="target(page + 1)">
+      下一页
+      <i class="iconfont icon-arrow-right" aria-hidden="true" />
+    </NuxtLink>
   </nav>
 </template>

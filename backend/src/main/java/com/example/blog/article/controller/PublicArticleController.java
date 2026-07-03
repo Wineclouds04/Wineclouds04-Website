@@ -1,6 +1,7 @@
 package com.example.blog.article.controller;
 
 import java.net.URI;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,15 +21,28 @@ import com.example.blog.article.dto.PublicArticlePage;
 import com.example.blog.article.dto.PublicHomeResponse;
 import com.example.blog.article.dto.PublicTaxonomyItem;
 import com.example.blog.article.service.PublicArticleService;
+import com.example.blog.interaction.service.VisitorContext;
+import com.example.blog.shared.security.RateLimitService;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 @RestController
 @RequestMapping("/api/v1/public")
 public class PublicArticleController {
 
     private final PublicArticleService service;
+    private final RateLimitService rateLimits;
+    private final VisitorContext visitors;
 
-    public PublicArticleController(PublicArticleService service) {
+    public PublicArticleController(
+            PublicArticleService service,
+            RateLimitService rateLimits,
+            VisitorContext visitors
+    ) {
         this.service = service;
+        this.rateLimits = rateLimits;
+        this.visitors = visitors;
     }
 
     @GetMapping("/home")
@@ -109,8 +123,16 @@ public class PublicArticleController {
     PublicArticlePage search(
             @RequestParam String keyword,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "12") int pageSize
+            @RequestParam(defaultValue = "12") int pageSize,
+            HttpServletRequest request,
+            HttpServletResponse response
     ) {
+        rateLimits.enforce(
+                "search",
+                visitors.resolve(request, response).ipHash(),
+                60,
+                Duration.ofMinutes(1)
+        );
         return service.findArticles(keyword, null, null, page, pageSize);
     }
 }

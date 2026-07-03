@@ -212,7 +212,7 @@ onBeforeUnmount(() => {
   <div class="editor-page">
     <header class="editor-header">
       <div>
-        <RouterLink class="back-link" to="/articles">← 返回文章列表</RouterLink>
+        <RouterLink class="back-link" to="/articles">返回文章列表</RouterLink>
         <p class="kicker">CONTENT / {{ isNew ? 'NEW DRAFT' : 'EDIT' }}</p>
       </div>
       <div class="editor-actions">

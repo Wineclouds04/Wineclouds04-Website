@@ -8,7 +8,7 @@ import com.example.blog.media.storage.AliyunOssObjectStorage;
 import com.example.blog.media.storage.ObjectStorage;
 
 @Configuration
-@EnableConfigurationProperties(OssProperties.class)
+@EnableConfigurationProperties({OssProperties.class, MediaLifecycleProperties.class})
 public class OssConfig {
 
     @Bean

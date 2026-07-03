@@ -5,8 +5,6 @@ COPY package.json package-lock.json ./
 COPY frontend/web/package.json frontend/web/package.json
 COPY frontend/admin/package.json frontend/admin/package.json
 COPY frontend/packages/api-client/package.json frontend/packages/api-client/package.json
-COPY frontend/packages/types/package.json frontend/packages/types/package.json
-COPY frontend/packages/shared-ui/package.json frontend/packages/shared-ui/package.json
 RUN npm ci
 
 COPY frontend/web frontend/web
@@ -20,4 +18,3 @@ COPY --from=builder /workspace/frontend/web/.output ./
 USER node
 EXPOSE 3000
 CMD ["node", "server/index.mjs"]
-

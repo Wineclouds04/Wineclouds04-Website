@@ -67,3 +67,42 @@ export interface ArticleNavigation {
   previous: ArticleCard | null
   next: ArticleCard | null
 }
+
+export interface PublicComment {
+  id: number
+  parentId: number | null
+  nickname: string
+  contentHtml: string
+  adminReply: boolean
+  createdAt: string
+  replies: PublicComment[]
+}
+
+export interface CommentInput {
+  nickname: string
+  email: string
+  website: string
+  content: string
+  parentId: number | null
+  notifyOnReply: boolean
+  captchaId: string
+  captchaAnswer: string
+}
+
+export interface CommentSubmitResponse {
+  id: number
+  status: 'PENDING'
+  message: string
+}
+
+export interface InteractionState {
+  likeCount: number
+  commentCount: number
+  liked: boolean
+}
+
+export interface CaptchaChallenge {
+  id: string
+  question: string
+  expiresAt: string
+}

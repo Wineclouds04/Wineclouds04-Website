@@ -26,7 +26,7 @@ export default defineEventHandler(async (event) => {
     )
   )
   const articles = [first, ...pages].flatMap((page) => page.items)
-  const staticPaths = ['/', '/blog', '/category', '/tag', '/archive']
+  const staticPaths = ['/', '/blog', '/category', '/tag', '/archive', '/privacy']
   const urls = [
     ...staticPaths.map((path) => `<url><loc>${escapeXml(siteUrl + path)}</loc></url>`),
     ...articles.map((article) =>

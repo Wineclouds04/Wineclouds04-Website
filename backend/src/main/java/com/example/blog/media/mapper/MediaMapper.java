@@ -1,5 +1,6 @@
 package com.example.blog.media.mapper;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,5 +35,33 @@ public interface MediaMapper {
 
     int updateAltText(@Param("id") Long id, @Param("altText") String altText);
 
-    int softDelete(Long id);
+    int reconcileReferences(@Param("now") LocalDateTime now);
+
+    int markOrphans(@Param("cutoff") LocalDateTime cutoff);
+
+    List<MediaAssetRecord> findDeleteCandidates(
+            @Param("now") LocalDateTime now,
+            @Param("limit") int limit
+    );
+
+    int claimManualDelete(
+            @Param("id") Long id,
+            @Param("now") LocalDateTime now,
+            @Param("leaseUntil") LocalDateTime leaseUntil
+    );
+
+    int claimLifecycleDelete(
+            @Param("id") Long id,
+            @Param("expectedStatus") String expectedStatus,
+            @Param("now") LocalDateTime now,
+            @Param("leaseUntil") LocalDateTime leaseUntil
+    );
+
+    int markDeleteComplete(Long id);
+
+    int markDeleteFailed(
+            @Param("id") Long id,
+            @Param("nextRetryAt") LocalDateTime nextRetryAt,
+            @Param("error") String error
+    );
 }

@@ -14,7 +14,26 @@
     "build:admin": "npm run build --workspace @personal-blog/admin",
     "dev:web": "npm run dev --workspace @personal-blog/web",
     "dev:admin": "npm run dev --workspace @personal-blog/admin",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:smoke": "playwright test --grep @smoke",
+    "test:openapi": "redocly lint docs/openapi.yaml",
+    "test:lighthouse": "lhci autorun",
+    "test:performance": "docker run --rm -i -e BASE_URL -e ARTICLE_SLUG grafana/k6:1.7.1 run - < tests/performance/blog.js"
+  },
+  "overrides": {
+    "tmp": "0.2.7",
+    "uuid": "11.1.1"
+  },
+  "devDependencies": {
+    "@lhci/cli": "^0.15.1",
+    "@playwright/test": "^1.61.1",
+    "@redocly/cli": "^2.36.0",
+    "@vitejs/plugin-vue": "^6.0.7",
+    "@vue/test-utils": "^2.4.11",
+    "jsdom": "^29.1.1",
+    "vitest": "^4.1.9"
   }
 }
-

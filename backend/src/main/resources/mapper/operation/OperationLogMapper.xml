@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.blog.operation.mapper.OperationLogMapper">
+    <sql id="columns">
+        l.id, l.operator_id, u.nickname AS operator_name, l.module, l.action,
+        l.target_id, l.result, CAST(l.detail_json AS CHAR) AS detail_json,
+        l.trace_id, l.created_at
+    </sql>
+
+    <insert id="insert">
+        INSERT INTO operation_log (
+            operator_id, module, action, target_id, result, detail_json, trace_id
+        )
+        VALUES (
+            #{operatorId}, #{module}, #{action}, #{targetId}, #{result},
+            #{detailJson}, #{traceId}
+        )
+    </insert>
+
+    <select id="findPage" resultType="com.example.blog.operation.dto.OperationLogItem">
+        SELECT <include refid="columns"/>
+        FROM operation_log l
+        LEFT JOIN sys_user u ON u.id = l.operator_id
+        <if test="module != null">
+            WHERE l.module = #{module}
+        </if>
+        ORDER BY l.created_at DESC, l.id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="count" resultType="long">
+        SELECT COUNT(*) FROM operation_log
+        <if test="module != null">
+            WHERE module = #{module}
+        </if>
+    </select>
+
+    <select id="findRecent" resultType="com.example.blog.operation.dto.OperationLogItem">
+        SELECT <include refid="columns"/>
+        FROM operation_log l
+        LEFT JOIN sys_user u ON u.id = l.operator_id
+        ORDER BY l.created_at DESC, l.id DESC
+        LIMIT #{limit}
+    </select>
+</mapper>

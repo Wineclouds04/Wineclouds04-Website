@@ -24,5 +24,5 @@ export default defineEventHandler(async (event) => {
   }).join('')
 
   setHeader(event, 'content-type', 'application/rss+xml; charset=utf-8')
-  return `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>余白札记</title><link>${escapeXml(siteUrl)}</link><description>记录技术、生活与灵光的个人博客。</description><language>zh-CN</language>${items}</channel></rss>`
+  return `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>CageWang‘s Blog</title><link>${escapeXml(siteUrl)}</link><description>记录技术、生活与灵光的个人博客。</description><language>zh-CN</language>${items}</channel></rss>`
 })

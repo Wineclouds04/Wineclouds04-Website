@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.blog.statistics.mapper.ViewStatisticsMapper">
+    <select id="articleIsPublic" resultType="boolean">
+        SELECT EXISTS(
+            SELECT 1 FROM article
+            WHERE id = #{articleId}
+              AND deleted_at IS NULL
+              AND status = 'PUBLISHED'
+              AND visibility = 'PUBLIC'
+        )
+    </select>
+
+    <insert id="addArticleViews">
+        INSERT INTO article_view_daily (
+            article_id, stat_date, view_count, unique_count
+        )
+        VALUES (
+            #{articleId}, #{statDate}, #{viewDelta}, #{uniqueAbsolute}
+        )
+        ON DUPLICATE KEY UPDATE
+            view_count = view_count + #{viewDelta},
+            unique_count = GREATEST(unique_count, #{uniqueAbsolute})
+    </insert>
+
+    <update id="addArticleTotal">
+        UPDATE article
+        SET view_count = view_count + #{delta}
+        WHERE id = #{articleId} AND deleted_at IS NULL
+    </update>
+
+    <insert id="addSiteViews">
+        INSERT INTO site_visit_daily (
+            stat_date, view_count, unique_count,
+            direct_count, search_count, referral_count
+        )
+        VALUES (
+            #{statDate}, #{viewDelta}, #{uniqueAbsolute},
+            #{directDelta}, #{searchDelta}, #{referralDelta}
+        )
+        ON DUPLICATE KEY UPDATE
+            view_count = view_count + #{viewDelta},
+            unique_count = GREATEST(unique_count, #{uniqueAbsolute}),
+            direct_count = direct_count + #{directDelta},
+            search_count = search_count + #{searchDelta},
+            referral_count = referral_count + #{referralDelta}
+    </insert>
+</mapper>

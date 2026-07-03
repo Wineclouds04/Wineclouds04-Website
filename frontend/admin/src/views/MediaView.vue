@@ -107,7 +107,7 @@ onMounted(load)
   <div class="content-page media-page">
     <header class="content-header">
       <div>
-        <RouterLink class="back-link" to="/">← 返回总览</RouterLink>
+        <RouterLink class="back-link" to="/">返回总览</RouterLink>
         <p class="kicker">CONTENT / MEDIA</p>
         <h1>媒体资源</h1>
       </div>

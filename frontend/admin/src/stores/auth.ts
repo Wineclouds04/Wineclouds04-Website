@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 
 import { api } from '../services/api'
 
-export type AdminUser = {
+type AdminUser = {
   id: string
   username: string
   nickname: string

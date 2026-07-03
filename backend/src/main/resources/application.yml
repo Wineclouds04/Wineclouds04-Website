@@ -33,11 +33,35 @@ spring:
     multipart:
       max-file-size: 10MB
       max-request-size: 11MB
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:25}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH:false}
+          starttls:
+            enable: ${MAIL_STARTTLS:false}
 
 server:
   port: ${SERVER_PORT:8080}
   shutdown: graceful
   forward-headers-strategy: framework
+
+springdoc:
+  api-docs:
+    enabled: ${SWAGGER_ENABLED:true}
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: ${SWAGGER_ENABLED:true}
+    path: /docs
+    disable-swagger-default-url: true
+    display-request-duration: true
+    operations-sorter: method
+    tags-sorter: alpha
+    persist-authorization: true
 
 mybatis:
   mapper-locations: classpath*:mapper/**/*.xml
@@ -60,6 +84,8 @@ management:
       enabled: true
     readinessstate:
       enabled: true
+    mail:
+      enabled: ${MAIL_ENABLED:false}
   info:
     env:
       enabled: true
@@ -67,9 +93,18 @@ management:
 info:
   app:
     name: ${spring.application.name}
-    stage: public-blog
+    stage: production-ready
 
 blog:
+  runtime:
+    project: ${BLOG_PROJECT:blog}
+    environment: ${BLOG_ENVIRONMENT:dev}
+    cache-enabled: ${CACHE_ENABLED:true}
+    article-cache-ttl: ${ARTICLE_CACHE_TTL:10m}
+    list-cache-ttl: ${LIST_CACHE_TTL:5m}
+    taxonomy-cache-ttl: ${TAXONOMY_CACHE_TTL:30m}
+  statistics:
+    flush-interval: ${STATISTICS_FLUSH_INTERVAL:60000}
   auth:
     issuer: personal-blog
     audience: personal-blog-admin
@@ -91,6 +126,18 @@ blog:
     max-image-size: ${OSS_MAX_IMAGE_SIZE:10485760}
     max-image-width: ${OSS_MAX_IMAGE_WIDTH:12000}
     max-image-height: ${OSS_MAX_IMAGE_HEIGHT:12000}
+  media-lifecycle:
+    orphan-grace-period: ${OSS_ORPHAN_GRACE_PERIOD:24h}
+    delete-retry-base-delay: ${OSS_DELETE_RETRY_BASE_DELAY:1m}
+    stale-delete-timeout: ${OSS_STALE_DELETE_TIMEOUT:15m}
+    cleanup-batch-size: ${OSS_CLEANUP_BATCH_SIZE:50}
+    cleanup-interval: ${OSS_CLEANUP_INTERVAL:300000}
+  mail:
+    enabled: ${MAIL_ENABLED:false}
+    from: ${MAIL_FROM:}
+    site-url: ${SITE_URL:http://localhost}
+    max-retries: ${MAIL_MAX_RETRIES:5}
+    poll-interval: ${MAIL_POLL_INTERVAL:30000}
 
 logging:
   pattern:

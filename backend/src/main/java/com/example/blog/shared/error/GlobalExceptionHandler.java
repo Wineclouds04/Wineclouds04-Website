@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import jakarta.servlet.http.HttpServletRequest;
+import com.example.blog.shared.security.RequestTraceFilter;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -42,6 +43,8 @@ public class GlobalExceptionHandler {
         problem.setTitle(status.getReasonPhrase());
         problem.setType(URI.create("https://personal-blog.local/problems/" + status.value()));
         problem.setInstance(URI.create(request.getRequestURI()));
+        Object traceId = request.getAttribute(RequestTraceFilter.TRACE_ID);
+        if (traceId != null) problem.setProperty("traceId", traceId.toString());
         return problem;
     }
 }

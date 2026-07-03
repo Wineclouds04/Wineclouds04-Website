@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.blog.comment.mapper.CommentMapper">
+    <sql id="columns">
+        id, article_id, root_id, parent_id, type, content_markdown, content_html,
+        nickname, email_ciphertext, website, anonymous_key_hash, status,
+        is_admin_reply, notify_on_reply, ip_hash, user_agent_summary, created_at, updated_at
+    </sql>
+
+    <select id="articleAcceptsComments" resultType="boolean">
+        SELECT EXISTS(
+            SELECT 1 FROM article
+            WHERE id = #{articleId}
+              AND deleted_at IS NULL
+              AND status = 'PUBLISHED'
+              AND visibility = 'PUBLIC'
+              AND allow_comment = 1
+        )
+    </select>
+
+    <select id="findApprovedArticleComments" resultType="com.example.blog.comment.model.CommentRecord">
+        SELECT <include refid="columns"/>
+        FROM comment
+        WHERE article_id = #{articleId}
+          AND type = 'ARTICLE'
+          AND status = 'APPROVED'
+          AND deleted_at IS NULL
+        ORDER BY created_at, id
+    </select>
+
+    <select id="findApprovedMessages" resultType="com.example.blog.comment.model.CommentRecord">
+        SELECT <include refid="columns"/>
+        FROM comment
+        WHERE article_id IS NULL
+          AND type = 'MESSAGE'
+          AND status = 'APPROVED'
+          AND deleted_at IS NULL
+        ORDER BY created_at DESC, id DESC
+    </select>
+
+    <select id="findById" resultType="com.example.blog.comment.model.CommentRecord">
+        SELECT <include refid="columns"/>
+        FROM comment
+        WHERE id = #{id} AND deleted_at IS NULL
+        LIMIT 1
+    </select>
+
+    <select id="findArticleSlug" resultType="string">
+        SELECT slug FROM article WHERE id = #{articleId} AND deleted_at IS NULL LIMIT 1
+    </select>
+
+    <select id="countDuplicate" resultType="int">
+        SELECT COUNT(*)
+        FROM comment
+        WHERE anonymous_key_hash = #{anonymousKeyHash}
+          AND content_markdown = #{contentMarkdown}
+          AND created_at &gt;= #{createdAfter}
+          AND deleted_at IS NULL
+    </select>
+
+    <select id="countByAnonymousKey" resultType="int">
+        SELECT COUNT(*)
+        FROM comment
+        WHERE anonymous_key_hash = #{anonymousKeyHash}
+          AND deleted_at IS NULL
+    </select>
+
+    <insert id="insert">
+        INSERT INTO comment (
+            article_id, root_id, parent_id, type, content_markdown, content_html,
+            nickname, email_ciphertext, website, anonymous_key_hash, status,
+            is_admin_reply, notify_on_reply, ip_hash, user_agent_summary
+        )
+        VALUES (
+            #{articleId}, #{rootId}, #{parentId}, #{type}, #{contentMarkdown}, #{contentHtml},
+            #{nickname}, #{emailCiphertext}, #{website}, #{anonymousKeyHash}, #{status},
+            #{adminReply}, #{notifyOnReply}, #{ipHash}, #{userAgentSummary}
+        )
+    </insert>
+
+    <select id="lastInsertId" resultType="long">
+        SELECT LAST_INSERT_ID()
+    </select>
+
+    <select id="findAdminPage" resultType="com.example.blog.comment.model.AdminCommentRecord">
+        SELECT c.id, c.article_id, a.title AS article_title, c.parent_id, c.type,
+               c.content_markdown, c.nickname, c.email_ciphertext,
+               c.website, c.status, c.is_admin_reply AS admin_reply,
+               CONCAT(LEFT(c.ip_hash, 8), '…') AS ip_summary, c.created_at
+        FROM comment c
+        LEFT JOIN article a ON a.id = c.article_id
+        WHERE c.deleted_at IS NULL
+        <if test="status != null">
+            AND c.status = #{status}
+        </if>
+        <if test="type != null">
+            AND c.type = #{type}
+        </if>
+        <if test="keyword != null">
+            AND (c.nickname LIKE CONCAT('%', #{keyword}, '%')
+                 OR c.content_markdown LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+        ORDER BY (c.status = 'PENDING') DESC, c.created_at DESC, c.id DESC
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countAdminPage" resultType="long">
+        SELECT COUNT(*)
+        FROM comment c
+        WHERE c.deleted_at IS NULL
+        <if test="status != null">
+            AND c.status = #{status}
+        </if>
+        <if test="type != null">
+            AND c.type = #{type}
+        </if>
+        <if test="keyword != null">
+            AND (c.nickname LIKE CONCAT('%', #{keyword}, '%')
+                 OR c.content_markdown LIKE CONCAT('%', #{keyword}, '%'))
+        </if>
+    </select>
+
+    <update id="updateStatus">
+        UPDATE comment SET status = #{status}
+        WHERE id = #{id} AND deleted_at IS NULL
+    </update>
+
+    <update id="softDelete">
+        UPDATE comment SET deleted_at = CURRENT_TIMESTAMP(3)
+        WHERE (id = #{id} OR root_id = #{id}) AND deleted_at IS NULL
+    </update>
+
+    <update id="refreshArticleCommentCount">
+        UPDATE article a
+        SET a.comment_count = (
+            SELECT COUNT(*) FROM comment c
+            WHERE c.article_id = a.id
+              AND c.status = 'APPROVED'
+              AND c.deleted_at IS NULL
+        )
+        WHERE a.id = #{articleId}
+    </update>
+</mapper>

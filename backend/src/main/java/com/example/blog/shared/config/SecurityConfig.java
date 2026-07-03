@@ -14,6 +14,8 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
+import org.springframework.security.web.header.writers.StaticHeadersWriter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -47,9 +49,16 @@ public class SecurityConfig {
                                 "/api/v1/auth/refresh",
                                 "/api/v1/auth/logout",
                                 "/api/v1/public/**",
+                                "/docs",
+                                "/docs/**",
+                                "/swagger-ui/**",
+                                "/v3/api-docs",
+                                "/v3/api-docs.yaml",
+                                "/v3/api-docs/**",
                                 "/actuator/health",
                                 "/actuator/health/**",
-                                "/actuator/info"
+                                "/actuator/info",
+                                "/actuator/prometheus"
                         ).permitAll()
                         .requestMatchers("/api/v1/admin/**").hasAnyRole("ADMIN", "DEMO")
                         .anyRequest().authenticated())
@@ -57,6 +66,30 @@ public class SecurityConfig {
                         .jwt(jwt -> jwt
                                 .decoder(jwtDecoder)
                                 .jwtAuthenticationConverter(authenticationConverter)))
+                .headers(headers -> {
+                    headers.contentSecurityPolicy(csp -> csp.policyDirectives(
+                                "default-src 'none'; "
+                                        + "connect-src 'self'; "
+                                        + "img-src 'self' data: https:; "
+                                        + "style-src 'self' 'unsafe-inline'; "
+                                        + "script-src 'self'; "
+                                        + "font-src 'self' data:; "
+                                        + "base-uri 'none'; "
+                                        + "form-action 'self'; "
+                                        + "frame-ancestors 'none'"
+                        ));
+                    headers.referrerPolicy(referrer ->
+                            referrer.policy(ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN));
+                    headers.addHeaderWriter(new StaticHeadersWriter(
+                            "Permissions-Policy",
+                            "camera=(), microphone=(), geolocation=(), payment=()"
+                    ));
+                    headers.frameOptions(frame -> frame.deny());
+                    headers.httpStrictTransportSecurity(hsts -> hsts
+                            .includeSubDomains(true)
+                            .preload(true)
+                            .maxAgeInSeconds(31536000));
+                })
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
@@ -69,7 +102,7 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(properties.allowedOrigins());
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-CSRF-Token"));
-        configuration.setExposedHeaders(List.of("Location"));
+        configuration.setExposedHeaders(List.of("Location", "X-Trace-ID"));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 

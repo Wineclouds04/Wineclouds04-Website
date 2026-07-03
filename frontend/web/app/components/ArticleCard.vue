@@ -10,30 +10,39 @@ defineProps<{
 
 <template>
   <article class="article-card" :class="{ featured }">
-    <div class="card-top">
-      <span class="card-number">{{ String((index ?? 0) + 1).padStart(2, '0') }}</span>
-      <span v-if="article.pinned" class="pinned">置顶</span>
-    </div>
-    <div class="card-body">
-      <NuxtLink
-        v-if="article.categorySlug"
-        class="category-link"
-        :to="`/category/${article.categorySlug}`"
-      >
-        {{ article.categoryName }}
-      </NuxtLink>
-      <h2>
-        <NuxtLink :to="`/article/${article.slug}`">{{ article.title }}</NuxtLink>
-      </h2>
-      <p>{{ article.summary || '一篇还没来得及写摘要的文章，正文里见。' }}</p>
-    </div>
-    <div class="card-meta">
-      <time :datetime="article.publishedAt">{{ formatDate(article.publishedAt) }}</time>
-      <span>{{ article.readingMinutes }} 分钟阅读</span>
-      <NuxtLink class="read-more" :to="`/article/${article.slug}`" aria-label="阅读全文">
-        阅读
-        <span aria-hidden="true">↗</span>
-      </NuxtLink>
-    </div>
+    <NuxtLink
+      class="article-card-link"
+      :to="`/article/${article.slug}`"
+    >
+      <div class="card-top">
+        <span v-if="article.categoryName" class="card-category">
+          <i class="iconfont icon-folder" aria-hidden="true" />
+          {{ article.categoryName }}
+        </span>
+        <time :datetime="article.publishedAt">
+          <i class="iconfont icon-time" aria-hidden="true" />
+          {{ formatDate(article.publishedAt) }}
+        </time>
+        <span v-if="article.pinned" class="pinned">置顶</span>
+      </div>
+      <div class="card-body">
+        <h2>{{ article.title }}</h2>
+        <p>{{ article.summary || '一篇还没来得及写摘要的文章，正文里见。' }}</p>
+      </div>
+      <div class="card-meta">
+        <span>
+          <i class="iconfont icon-eye" aria-hidden="true" />
+          {{ article.viewCount }}
+        </span>
+        <span>
+          <i class="iconfont icon-guidang" aria-hidden="true" />
+          第 {{ String((index ?? 0) + 1).padStart(2, '0') }} 篇
+        </span>
+        <span>
+          <i class="iconfont icon-time" aria-hidden="true" />
+          {{ article.readingMinutes }} 分钟
+        </span>
+      </div>
+    </NuxtLink>
   </article>
 </template>

@@ -1,5 +1,7 @@
 package com.example.blog.media.controller;
 
+import java.time.Duration;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -20,6 +22,8 @@ import com.example.blog.media.dto.MediaAssetResponse;
 import com.example.blog.media.dto.MediaConfigResponse;
 import com.example.blog.media.dto.MediaPageResponse;
 import com.example.blog.media.service.MediaService;
+import com.example.blog.operation.service.OperationLogService;
+import com.example.blog.shared.security.RateLimitService;
 
 import jakarta.validation.Valid;
 
@@ -28,9 +32,17 @@ import jakarta.validation.Valid;
 public class AdminMediaController {
 
     private final MediaService mediaService;
+    private final OperationLogService operationLogs;
+    private final RateLimitService rateLimits;
 
-    public AdminMediaController(MediaService mediaService) {
+    public AdminMediaController(
+            MediaService mediaService,
+            OperationLogService operationLogs,
+            RateLimitService rateLimits
+    ) {
         this.mediaService = mediaService;
+        this.operationLogs = operationLogs;
+        this.rateLimits = rateLimits;
     }
 
     @GetMapping("/config")
@@ -53,22 +65,34 @@ public class AdminMediaController {
             @RequestParam(required = false) String altText,
             @AuthenticationPrincipal Jwt jwt
     ) {
-        return mediaService.upload(file, altText, Long.valueOf(jwt.getSubject()));
+        rateLimits.enforce(
+                "upload",
+                jwt.getSubject(),
+                20,
+                Duration.ofMinutes(1)
+        );
+        MediaAssetResponse created = mediaService.upload(file, altText, Long.valueOf(jwt.getSubject()));
+        operationLogs.record(Long.valueOf(jwt.getSubject()), "MEDIA", "UPLOAD", created.id(), "{}");
+        return created;
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     MediaAssetResponse update(
             @PathVariable Long id,
-            @Valid @RequestBody MediaAltTextRequest request
+            @Valid @RequestBody MediaAltTextRequest request,
+            @AuthenticationPrincipal Jwt jwt
     ) {
-        return mediaService.updateAltText(id, request.altText());
+        MediaAssetResponse updated = mediaService.updateAltText(id, request.altText());
+        operationLogs.record(Long.valueOf(jwt.getSubject()), "MEDIA", "UPDATE", id, "{}");
+        return updated;
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    ResponseEntity<Void> delete(@PathVariable Long id) {
+    ResponseEntity<Void> delete(@PathVariable Long id, @AuthenticationPrincipal Jwt jwt) {
         mediaService.delete(id);
+        operationLogs.record(Long.valueOf(jwt.getSubject()), "MEDIA", "DELETE", id, "{}");
         return ResponseEntity.noContent().build();
     }
 }
