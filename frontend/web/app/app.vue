@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import weatherMoonIcon from '@fluentui/svg-icons/icons/weather_moon_24_regular.svg?url'
+import weatherSunnyIcon from '@fluentui/svg-icons/icons/weather_sunny_24_regular.svg?url'
+
 const route = useRoute()
 const theme = useTheme()
 const api = useBlogApi()
@@ -49,7 +52,7 @@ onUnmounted(() => {
   <div class="site-shell">
     <header
       class="site-header"
-      :class="{ 'over-hero': route.path === '/', scrolled }"
+      :class="{ scrolled }"
     >
       <div class="nav-wrap">
         <NuxtLink class="brand" to="/" aria-label="回到首页">
@@ -76,9 +79,13 @@ onUnmounted(() => {
             class="theme-button"
             type="button"
             :aria-label="theme.isDark.value ? '切换到浅色模式' : '切换到深色模式'"
+            :title="theme.isDark.value ? '浅色模式' : '深色模式'"
             @click="theme.toggle"
           >
-            {{ theme.isDark.value ? '浅色' : '深色' }}
+            <img
+              :src="theme.isDark.value ? weatherSunnyIcon : weatherMoonIcon"
+              alt=""
+            >
           </button>
         </div>
       </div>

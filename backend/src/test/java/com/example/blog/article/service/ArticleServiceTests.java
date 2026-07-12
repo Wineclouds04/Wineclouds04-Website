@@ -7,6 +7,7 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -91,6 +92,26 @@ class ArticleServiceTests {
         assertThrows(ApiException.class, () -> articleService.update(42L, request(Set.of())));
     }
 
+    @Test
+    void rejectsPublishingArticleWithoutTitle() {
+        when(articleMapper.findById(42L)).thenReturn(Optional.of(article(42L, " ", "a-useful-title")));
+
+        ApiException exception = assertThrows(ApiException.class, () -> articleService.publish(42L));
+
+        assertEquals("标题不能为空，无法发布", exception.getMessage());
+        verify(articleMapper, never()).publish(eq(42L), any());
+    }
+
+    @Test
+    void rejectsPublishingArticleWithoutSlug() {
+        when(articleMapper.findById(42L)).thenReturn(Optional.of(article(42L, "A useful title", " ")));
+
+        ApiException exception = assertThrows(ApiException.class, () -> articleService.publish(42L));
+
+        assertEquals("slug 不能为空，无法发布", exception.getMessage());
+        verify(articleMapper, never()).publish(eq(42L), any());
+    }
+
     private ArticleUpsertRequest request(Set<Long> tagIds) {
         return new ArticleUpsertRequest(
                 "A useful title",
@@ -110,11 +131,15 @@ class ArticleServiceTests {
     }
 
     private ArticleRecord article(Long id) {
+        return article(id, "A useful title", "a-useful-title");
+    }
+
+    private ArticleRecord article(Long id, String title, String slug) {
         LocalDateTime now = LocalDateTime.of(2026, 7, 1, 8, 0);
         return new ArticleRecord(
                 id,
-                "A useful title",
-                "a-useful-title",
+                title,
+                slug,
                 "A short summary",
                 "# Hello",
                 "<h1>Hello</h1>",

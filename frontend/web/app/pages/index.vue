@@ -32,11 +32,6 @@ useSeoMeta({
 
 <template>
   <div class="reference-home">
-    <section
-      class="reference-hero"
-      aria-label="黄昏海边车站"
-    />
-
     <section class="home-feed-section">
       <div class="home-feed-layout">
         <div class="home-article-column">

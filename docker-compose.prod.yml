@@ -1,0 +1,97 @@
+services:
+  mysql:
+    restart: always
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?Set MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USERNAME:?Set MYSQL_USERNAME}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Set MYSQL_ROOT_PASSWORD}
+    logging: &production-logging
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+    security_opt:
+      - no-new-privileges:true
+
+  redis:
+    restart: always
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD}
+    logging: *production-logging
+    security_opt:
+      - no-new-privileges:true
+
+  backend:
+    image: ${IMAGE_REGISTRY:-local}/personal-blog-backend:${APP_VERSION:?Set APP_VERSION}
+    restart: always
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Set REDIS_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET}
+      SECURE_COOKIES: "true"
+      ADMIN_ALLOWED_ORIGINS: https://${ADMIN_HOST:?Set ADMIN_HOST}
+      ADMIN_INITIAL_USERNAME: ${ADMIN_INITIAL_USERNAME:-}
+      ADMIN_INITIAL_PASSWORD: ${ADMIN_INITIAL_PASSWORD:-}
+      OSS_REGION: ${OSS_REGION:-}
+      OSS_ENDPOINT: ${OSS_ENDPOINT:-}
+      OSS_BUCKET: ${OSS_BUCKET:-}
+      OSS_ACCESS_KEY_ID: ${OSS_ACCESS_KEY_ID:-}
+      OSS_ACCESS_KEY_SECRET: ${OSS_ACCESS_KEY_SECRET:-}
+      OSS_CDN_DOMAIN: ${OSS_CDN_DOMAIN:-}
+      OSS_OBJECT_PREFIX: ${OSS_OBJECT_PREFIX:-blog/prod}
+      OSS_ORPHAN_GRACE_PERIOD: ${OSS_ORPHAN_GRACE_PERIOD:-24h}
+      OSS_DELETE_RETRY_BASE_DELAY: ${OSS_DELETE_RETRY_BASE_DELAY:-1m}
+      OSS_STALE_DELETE_TIMEOUT: ${OSS_STALE_DELETE_TIMEOUT:-15m}
+      OSS_CLEANUP_BATCH_SIZE: ${OSS_CLEANUP_BATCH_SIZE:-50}
+      OSS_CLEANUP_INTERVAL: ${OSS_CLEANUP_INTERVAL:-300000}
+      MAIL_ENABLED: ${MAIL_ENABLED:-false}
+      MAIL_HOST: ${MAIL_HOST:-localhost}
+      MAIL_PORT: ${MAIL_PORT:-25}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-true}
+      MAIL_STARTTLS: ${MAIL_STARTTLS:-true}
+      SITE_URL: https://${PUBLIC_HOST:?Set PUBLIC_HOST}
+      BLOG_ENVIRONMENT: prod
+      APP_VERSION: ${APP_VERSION}
+    read_only: true
+    tmpfs:
+      - /tmp
+    logging: *production-logging
+    security_opt:
+      - no-new-privileges:true
+
+  web:
+    image: ${IMAGE_REGISTRY:-local}/personal-blog-web:${APP_VERSION:?Set APP_VERSION}
+    restart: always
+    environment:
+      NUXT_PUBLIC_SITE_URL: https://${PUBLIC_HOST:?Set PUBLIC_HOST}
+    logging: *production-logging
+    security_opt:
+      - no-new-privileges:true
+
+  admin-static:
+    image: ${IMAGE_REGISTRY:-local}/personal-blog-admin:${APP_VERSION:?Set APP_VERSION}
+    restart: always
+    logging: *production-logging
+    security_opt:
+      - no-new-privileges:true
+
+  nginx:
+    restart: always
+    ports: !override
+      - "80:80"
+      - "443:443"
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST:?Set PUBLIC_HOST}
+      ADMIN_HOST: ${ADMIN_HOST:?Set ADMIN_HOST}
+      NGINX_ENVSUBST_FILTER: ^(PUBLIC_HOST|ADMIN_HOST)$
+    volumes: !override
+      - ./deploy/nginx/production.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./deploy/certs:/etc/nginx/certs:ro
+    logging: *production-logging
+    security_opt:
+      - no-new-privileges:true

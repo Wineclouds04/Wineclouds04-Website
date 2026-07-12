@@ -125,7 +125,8 @@ public class ArticleService {
 
     @Transactional
     public ArticleDetailResponse publish(Long id) {
-        requireArticle(id);
+        ArticleRecord article = requireArticle(id);
+        validatePublishable(article);
         if (articleMapper.publish(id, LocalDateTime.now(ZoneOffset.UTC)) == 0) {
             throw new ApiException(HttpStatus.CONFLICT, "文章当前状态不能发布");
         }
@@ -161,6 +162,15 @@ public class ArticleService {
         if (!request.tagIds().isEmpty()
                 && articleMapper.countExistingTags(request.tagIds()) != request.tagIds().size()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "所选标签包含无效项");
+        }
+    }
+
+    private void validatePublishable(ArticleRecord article) {
+        if (article.title() == null || article.title().isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "标题不能为空，无法发布");
+        }
+        if (article.slug() == null || article.slug().isBlank()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "slug 不能为空，无法发布");
         }
     }
 

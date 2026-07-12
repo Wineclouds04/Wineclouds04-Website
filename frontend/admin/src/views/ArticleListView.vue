@@ -63,6 +63,16 @@ const turnPage = (next: number) => {
 const changeState = async (article: ArticleListItem, action: 'publish' | 'withdraw') => {
   if (!canWrite.value) return
   error.value = ''
+  if (action === 'publish') {
+    const missingFields = [
+      ...(!article.title.trim() ? ['标题'] : []),
+      ...(!article.slug.trim() ? ['slug'] : [])
+    ]
+    if (missingFields.length > 0) {
+      error.value = `${missingFields.join('和')}不能为空，无法发布`
+      return
+    }
+  }
   try {
     await api.post(`/admin/articles/${article.id}/${action}`)
     await load()
