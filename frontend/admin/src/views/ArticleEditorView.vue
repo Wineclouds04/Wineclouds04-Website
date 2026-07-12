@@ -152,15 +152,33 @@ const save = async (automatic = false) => {
     return
   }
   error.value = ''
-  if (!form.title.trim() || !form.slug.trim()) {
-    if (!automatic) error.value = '标题和 slug 不能为空'
+  const missingFields = [
+    ...(!form.title.trim() ? ['标题'] : []),
+    ...(!form.slug.trim() ? ['slug'] : [])
+  ]
+  if (missingFields.length > 0) {
+    if (!automatic) error.value = `${missingFields.join('和')}不能为空`
     return
   }
   saving.value = true
   saveState.value = 'saving'
   try {
     const wasNew = isNew.value
-    const payload = { ...form, tagIds: [...form.tagIds] }
+    const payload: ArticleInput = {
+      title: form.title,
+      slug: form.slug,
+      summary: form.summary,
+      contentMarkdown: form.contentMarkdown,
+      categoryId: form.categoryId === null ? null : Number(form.categoryId),
+      tagIds: form.tagIds.map(Number),
+      visibility: form.visibility,
+      pinned: Boolean(form.pinned),
+      allowComment: Boolean(form.allowComment),
+      metaTitle: form.metaTitle,
+      metaDescription: form.metaDescription,
+      canonicalUrl: form.canonicalUrl,
+      version: Number(form.version)
+    }
     const sentFingerprint = JSON.stringify(payload)
     const article = wasNew
       ? await api.post<ArticleDetail>('/admin/articles', payload)
@@ -241,11 +259,12 @@ onBeforeUnmount(() => {
           class="title-input"
           type="text"
           maxlength="200"
-          placeholder="文章标题"
+          placeholder="文章标题（必填）"
+          required
           :readonly="!canWrite"
         >
         <label>
-          <span>URL SLUG</span>
+          <span>URL 标识（Slug，必填）</span>
           <div class="slug-field">
             <i>/article/</i>
             <input
@@ -254,6 +273,7 @@ onBeforeUnmount(() => {
               maxlength="160"
               pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
               placeholder="my-first-article"
+              required
               :readonly="!canWrite"
             >
           </div>
