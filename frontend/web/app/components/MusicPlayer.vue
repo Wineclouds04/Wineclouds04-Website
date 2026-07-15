@@ -64,8 +64,22 @@ const loadTrack = async (index: number, autoplay: boolean, freshRequest = true) 
   errorMessage.value = ''
   isLoading.value = true
 
+  let streamUrl: string
+
   try {
-    const streamUrl = await requestStream(track)
+    streamUrl = await requestStream(track)
+  } catch {
+    const next = getNextIndex(index, tracks.value.length, 'all')
+    if (freshRequest && next !== null && next !== index) {
+      await loadTrack(next, autoplay, false)
+      return
+    }
+
+    showError('当前歌曲暂时无法播放')
+    return
+  }
+
+  try {
     player.src = streamUrl
     player.load()
     currentTime.value = 0
@@ -83,8 +97,9 @@ const togglePlayback = async () => {
   const player = audio.value
   if (!player || !currentTrack.value) return
 
-  if (isPlaying.value) {
+  if (!player.paused) {
     player.pause()
+    isPlaying.value = false
     return
   }
 
@@ -227,6 +242,7 @@ onUnmounted(() => clearCollapseTimer())
     <audio
       ref="audio"
       preload="metadata"
+      @play="isPlaying = true"
       @playing="isPlaying = true"
       @pause="isPlaying = false"
       @timeupdate="currentTime = audio?.currentTime || 0"
