@@ -10,7 +10,7 @@
 
 ```text
 MusicPlayer.vue（浏览器）
-  └─ GET /api/music/playlist（Nuxt Nitro 同源路由）
+  └─ GET /music/playlist（Nuxt Nitro 同源路由）
        └─ @meting/core：new Meting('tencent')
             └─ QQ 音乐歌单 9747059163
 ```
