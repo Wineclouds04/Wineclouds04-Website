@@ -199,7 +199,7 @@ docker build -t wineclouds-admin -f frontend/admin/Dockerfile .
 docker compose up --build --wait
 ```
 
-生产部署前，在 Ubuntu 服务器上复制 `.env.production.example` 为 `.env.production` 并填入真实值；该文件受 Git 忽略保护。将覆盖 `PUBLIC_HOST` 与 `ADMIN_HOST` 的证书分别命名为 `fullchain.pem`、`privkey.pem` 后放到 `deploy/certs/`，再执行：
+生产部署前，在 Ubuntu 服务器上复制 `.env.production.example` 为 `.env.production` 并填入真实值；该文件受 Git 忽略保护。将前台证书（覆盖 `PUBLIC_HOST` 与 `PUBLIC_WWW_HOST`）命名为 `public-fullchain.pem`、`public-privkey.pem`，将后台证书（覆盖 `ADMIN_HOST`）命名为 `admin-fullchain.pem`、`admin-privkey.pem`，再一并放到 `deploy/certs/`，然后执行：
 
 ```bash
 chmod +x deploy/scripts/*.sh

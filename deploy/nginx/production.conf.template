@@ -21,7 +21,7 @@ map $http_upgrade $connection_upgrade {
 server {
     listen 80 default_server;
     listen [::]:80 default_server;
-    server_name ${PUBLIC_HOST} ${ADMIN_HOST};
+    server_name ${PUBLIC_HOST} ${PUBLIC_WWW_HOST} ${ADMIN_HOST};
     server_tokens off;
 
     location = /healthz {
@@ -39,12 +39,12 @@ server {
     listen 443 ssl;
     listen [::]:443 ssl;
     http2 on;
-    server_name ${PUBLIC_HOST};
+    server_name ${PUBLIC_HOST} ${PUBLIC_WWW_HOST};
     server_tokens off;
     client_max_body_size 20m;
 
-    ssl_certificate /etc/nginx/certs/fullchain.pem;
-    ssl_certificate_key /etc/nginx/certs/privkey.pem;
+    ssl_certificate /etc/nginx/certs/public-fullchain.pem;
+    ssl_certificate_key /etc/nginx/certs/public-privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_session_cache shared:SSL:10m;
     ssl_session_timeout 1d;
@@ -112,8 +112,8 @@ server {
     server_tokens off;
     client_max_body_size 20m;
 
-    ssl_certificate /etc/nginx/certs/fullchain.pem;
-    ssl_certificate_key /etc/nginx/certs/privkey.pem;
+    ssl_certificate /etc/nginx/certs/admin-fullchain.pem;
+    ssl_certificate_key /etc/nginx/certs/admin-privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_session_cache shared:SSL:10m;
     ssl_session_timeout 1d;

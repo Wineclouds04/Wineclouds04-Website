@@ -33,6 +33,7 @@ read_env() {
   sed -n "s/^${key}=//p" "$ENV_FILE" | tail -n 1
 }
 export PUBLIC_HOST="${PUBLIC_HOST:-$(read_env PUBLIC_HOST)}"
+export PUBLIC_WWW_HOST="${PUBLIC_WWW_HOST:-$(read_env PUBLIC_WWW_HOST)}"
 export ADMIN_HOST="${ADMIN_HOST:-$(read_env ADMIN_HOST)}"
 
 if "$ROOT_DIR/deploy/scripts/smoke-test.sh"; then

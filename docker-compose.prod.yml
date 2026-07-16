@@ -86,8 +86,9 @@ services:
       - "443:443"
     environment:
       PUBLIC_HOST: ${PUBLIC_HOST:?Set PUBLIC_HOST}
+      PUBLIC_WWW_HOST: ${PUBLIC_WWW_HOST:?Set PUBLIC_WWW_HOST}
       ADMIN_HOST: ${ADMIN_HOST:?Set ADMIN_HOST}
-      NGINX_ENVSUBST_FILTER: ^(PUBLIC_HOST|ADMIN_HOST)$
+      NGINX_ENVSUBST_FILTER: ^(PUBLIC_HOST|PUBLIC_WWW_HOST|ADMIN_HOST)$
     volumes: !override
       - ./deploy/nginx/production.conf.template:/etc/nginx/templates/default.conf.template:ro
       - ./deploy/certs:/etc/nginx/certs:ro

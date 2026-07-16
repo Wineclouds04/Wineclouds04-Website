@@ -2,6 +2,7 @@
 set -Eeuo pipefail
 
 PUBLIC_URL="${PUBLIC_URL:-https://${PUBLIC_HOST:?Set PUBLIC_HOST or PUBLIC_URL}}"
+PUBLIC_WWW_URL="${PUBLIC_WWW_URL:-https://${PUBLIC_WWW_HOST:?Set PUBLIC_WWW_HOST or PUBLIC_WWW_URL}}"
 ADMIN_URL="${ADMIN_URL:-https://${ADMIN_HOST:?Set ADMIN_HOST or ADMIN_URL}}"
 
 retry() {
@@ -23,6 +24,8 @@ retry "$PUBLIC_URL/api/v1/status" '"status":"ok"'
 retry "$PUBLIC_URL/" "余白札记"
 retry "$PUBLIC_URL/rss.xml" "<rss"
 retry "$PUBLIC_URL/sitemap.xml" "<urlset"
+retry "$PUBLIC_WWW_URL/healthz" "ok"
+retry "$PUBLIC_WWW_URL/" "余白札记"
 retry "$ADMIN_URL/healthz" "ok"
 retry "$ADMIN_URL/login" "PERSONAL BLOG"
 
