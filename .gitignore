@@ -4,6 +4,8 @@
 !.env.production.example
 
 deploy/certs/
+.codex-logs/
+.release-version
 
 node_modules/
 **/node_modules/
@@ -17,9 +19,21 @@ dist/
 target/
 **/target/
 *.tsbuildinfo
+coverage/
+**/coverage/
+
+*.zip
+*.tar
+*.tar.gz
+*.tgz
 
 .superpowers/
 docs/superpowers/
+
+# Keep local and CI test suites out of published source snapshots.
+backend/src/test/
+deploy/tests/
+deploy/scripts/smoke-test.sh
 
 *.log
 .idea/

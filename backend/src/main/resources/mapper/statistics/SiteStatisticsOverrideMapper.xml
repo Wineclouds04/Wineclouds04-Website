@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.blog.statistics.mapper.SiteStatisticsOverrideMapper">
+    <select id="findOverrideJson" resultType="string">
+        SELECT CAST(json_value AS CHAR)
+        FROM site_config
+        WHERE config_key = 'site.statistics.override'
+        LIMIT 1
+    </select>
+
+    <insert id="upsertOverrideJson">
+        INSERT INTO site_config (config_key, json_value, data_type, is_public, description)
+        VALUES ('site.statistics.override', CAST(#{overrideJson} AS JSON), 'JSON', 0, '站点统计展示调整值')
+        ON DUPLICATE KEY UPDATE
+            json_value = CAST(#{overrideJson} AS JSON),
+            data_type = 'JSON',
+            is_public = 0,
+            description = '站点统计展示调整值'
+    </insert>
+</mapper>

@@ -54,6 +54,18 @@ const router = createRouter({
       meta: { requiresAuth: true, title: '媒体管理' }
     },
     {
+      path: '/profile',
+      name: 'profile',
+      component: () => import('../views/SiteProfileView.vue'),
+      meta: { requiresAuth: true, title: '站点资料' }
+    },
+    {
+      path: '/statistics',
+      name: 'statistics',
+      component: () => import('../views/SiteStatisticsView.vue'),
+      meta: { requiresAuth: true, title: '站点统计' }
+    },
+    {
       path: '/comments',
       name: 'comments',
       component: () => import('../views/CommentModerationView.vue'),

@@ -11,8 +11,11 @@ import org.springframework.stereotype.Service;
 
 import com.example.blog.interaction.service.VisitorContext.Visitor;
 import com.example.blog.shared.config.RuntimeProperties;
+import com.example.blog.shared.error.ApiException;
 import com.example.blog.statistics.dto.PublicSiteStatistics;
+import com.example.blog.statistics.dto.SiteStatisticsUpdateRequest;
 import com.example.blog.statistics.mapper.ViewStatisticsMapper;
+import org.springframework.http.HttpStatus;
 
 @Service
 public class SiteStatisticsService {
@@ -23,18 +26,42 @@ public class SiteStatisticsService {
     private final StringRedisTemplate redis;
     private final ViewStatisticsMapper mapper;
     private final RuntimeProperties runtime;
+    private final SiteStatisticsOverrideService overrides;
 
     public SiteStatisticsService(
             StringRedisTemplate redis,
             ViewStatisticsMapper mapper,
-            RuntimeProperties runtime
+            RuntimeProperties runtime,
+            SiteStatisticsOverrideService overrides
     ) {
         this.redis = redis;
         this.mapper = mapper;
         this.runtime = runtime;
+        this.overrides = overrides;
     }
 
     public PublicSiteStatistics snapshot(Visitor visitor) {
+        return overrides.apply(rawSnapshot(visitor, true));
+    }
+
+    public PublicSiteStatistics adminSnapshot() {
+        return overrides.apply(rawSnapshot(null, false));
+    }
+
+    public PublicSiteStatistics updateTargets(SiteStatisticsUpdateRequest request) {
+        if (request.totalViews() < request.todayViews()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "总浏览量不能小于今日浏览量");
+        }
+        PublicSiteStatistics targets = new PublicSiteStatistics(
+                request.onlineVisitors(),
+                request.todayViews(),
+                request.totalViews(),
+                request.totalVisitors()
+        );
+        return overrides.updateTargets(targets, rawSnapshot(null, false));
+    }
+
+    private PublicSiteStatistics rawSnapshot(Visitor visitor, boolean recordOnline) {
         LocalDate today = LocalDate.now(ZoneOffset.UTC);
         String dateValue = today.toString();
 
@@ -50,7 +77,7 @@ public class SiteStatisticsService {
                     persistedTodayVisitors,
                     setSize(siteUniqueKey(dateValue))
             );
-            onlineVisitors = touchOnline(visitor.anonymousKeyHash());
+            onlineVisitors = recordOnline ? touchOnline(visitor.anonymousKeyHash()) : onlineCount();
         } catch (DataAccessException ignored) {
             // Persisted statistics remain available if Redis is temporarily unavailable.
         }
@@ -72,6 +99,11 @@ public class SiteStatisticsService {
         online.removeRangeByScore(key, 0, now - ONLINE_WINDOW.toMillis());
         redis.expire(key, ONLINE_TTL);
         Long count = online.zCard(key);
+        return count == null ? 0 : count;
+    }
+
+    private long onlineCount() {
+        Long count = redis.opsForZSet().zCard(runtime.key("counter", "site:online"));
         return count == null ? 0 : count;
     }
 

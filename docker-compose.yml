@@ -1,4 +1,4 @@
-name: ${COMPOSE_PROJECT_NAME:-personal-blog}
+name: ${COMPOSE_PROJECT_NAME:-wineclouds04-website}
 
 services:
   mysql:
@@ -128,6 +128,10 @@ services:
       NUXT_API_BASE: http://backend:8080/api/v1
       NUXT_PUBLIC_API_BASE: /api/v1
       NUXT_PUBLIC_SITE_URL: ${SITE_URL:-http://localhost}
+      NUXT_PUBLIC_SOCIAL_GITHUB_URL: ${NUXT_PUBLIC_SOCIAL_GITHUB_URL:-}
+      NUXT_PUBLIC_SOCIAL_DOUYIN_URL: ${NUXT_PUBLIC_SOCIAL_DOUYIN_URL:-}
+      NUXT_PUBLIC_SOCIAL_BILIBILI_URL: ${NUXT_PUBLIC_SOCIAL_BILIBILI_URL:-}
+      NUXT_PUBLIC_SOCIAL_XIAOHONGSHU_URL: ${NUXT_PUBLIC_SOCIAL_XIAOHONGSHU_URL:-}
     depends_on:
       backend:
         condition: service_healthy

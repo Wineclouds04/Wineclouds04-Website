@@ -9,6 +9,7 @@ import type {
   HomeResponse,
   InteractionState,
   PublicComment,
+  SiteProfile,
   SiteStatistics,
   TaxonomyItem
 } from '~/types/blog'
@@ -21,6 +22,7 @@ export function useBlogApi() {
 
   return {
     home: () => request<HomeResponse>('/public/home'),
+    profile: () => request<SiteProfile>('/public/profile'),
     statistics: () => request<SiteStatistics>('/public/statistics'),
     articles: (query?: Record<string, string | number | undefined>) =>
       request<ArticlePage>('/public/articles', query),

@@ -9,41 +9,44 @@ import {
 
 const api = useBlogApi()
 const { data, error, refresh } = await useAsyncData('home', () => api.home())
+const { data: profile, refresh: refreshProfile } = await useAsyncData('site-profile', () => api.profile())
 const config = useRuntimeConfig()
-const avatarSrc = '/images/wineclouds-avatar.png'
+const avatarSrc = computed(() => profile.value?.avatarUrl || '/images/wineclouds-avatar.png')
+const signature = computed(() => profile.value?.signature || '本质哈基米')
 const siteStats = useSiteStatistics()
 
 const socialLinks: Array<{ label: string, href: string, icon: SimpleIcon }> = [
-  { label: 'GitHub', href: config.public.socialGithubUrl || '#', icon: siGithub },
+  { label: 'GitHub', href: config.public.socialGithubUrl || 'https://github.com/Wineclouds04', icon: siGithub },
   {
     label: '抖音',
-    href: config.public.socialDouyinUrl || '#',
+    href: config.public.socialDouyinUrl || 'https://www.douyin.com/user/MS4wLjABAAAAyDLG3rv8oGhFrBfz-5KxjozQW0sRV1rlg1oIIWdAkjxuXYDD7ueG1q1J-F02dwoz?from_tab_name=main',
     icon: siTiktok
   },
-  { label: 'B站', href: config.public.socialBilibiliUrl || '#', icon: siBilibili },
+  { label: 'B站', href: config.public.socialBilibiliUrl || 'https://space.bilibili.com/406310101', icon: siBilibili },
   {
     label: '小红书',
-    href: config.public.socialXiaohongshuUrl || '#',
+    href: config.public.socialXiaohongshuUrl || 'https://www.xiaohongshu.com/user/profile/64c5ebe9000000000b00612b?xsec_token=ABVLi2q8QwizAK7oUjjyHM0ou6_fklAErwxEqBXJ8Jj2s%3D&xsec_source=pc_search',
     icon: siXiaohongshu
   }
 ]
 
-const handleSocialLinkClick = (event: MouseEvent, href: string) => {
-  if (href === '#') {
-    event.preventDefault()
-  }
-}
-
 const refreshHome = () => {
   void refresh()
+  void refreshProfile()
+}
+
+const refreshWhenVisible = () => {
+  if (document.visibilityState === 'visible') refreshHome()
 }
 
 onMounted(() => {
   window.addEventListener('focus', refreshHome)
+  document.addEventListener('visibilitychange', refreshWhenVisible)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('focus', refreshHome)
+  document.removeEventListener('visibilitychange', refreshWhenVisible)
 })
 
 const shownArticles = computed(() => data.value?.latest.slice(0, 8) || [])
@@ -88,7 +91,7 @@ useSeoMeta({
               alt="Wineclouds 的头像"
             >
             <h2>Wineclouds</h2>
-            <p>本质哈基米</p>
+            <p>{{ signature }}</p>
             <span class="profile-location">
               <i class="iconfont icon-position" aria-hidden="true" />
               中国 · 上海
@@ -115,11 +118,9 @@ useSeoMeta({
                 :key="link.label"
                 :href="link.href"
                 :aria-label="link.label"
-                :aria-disabled="link.href === '#'"
                 :title="link.label"
                 target="_blank"
                 rel="noopener noreferrer"
-                @click="handleSocialLinkClick($event, link.href)"
               >
                 <svg
                   class="profile-social-icon"

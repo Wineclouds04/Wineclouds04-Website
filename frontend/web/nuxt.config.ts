@@ -41,7 +41,6 @@ export default defineNuxtConfig({
     routeRules: process.env.NODE_ENV === 'development'
       ? {}
       : {
-          '/': { swr: 120 },
           '/article/**': { swr: 300 },
           '/category/**': { swr: 120 },
           '/tag/**': { swr: 120 },

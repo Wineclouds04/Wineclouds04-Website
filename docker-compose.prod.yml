@@ -23,7 +23,7 @@ services:
       - no-new-privileges:true
 
   backend:
-    image: ${IMAGE_REGISTRY:-local}/personal-blog-backend:${APP_VERSION:?Set APP_VERSION}
+    image: ${IMAGE_REGISTRY:-local}/wineclouds04-website-backend:${APP_VERSION:?Set APP_VERSION}
     restart: always
     environment:
       SPRING_PROFILES_ACTIVE: prod
@@ -64,16 +64,20 @@ services:
       - no-new-privileges:true
 
   web:
-    image: ${IMAGE_REGISTRY:-local}/personal-blog-web:${APP_VERSION:?Set APP_VERSION}
+    image: ${IMAGE_REGISTRY:-local}/wineclouds04-website-web:${APP_VERSION:?Set APP_VERSION}
     restart: always
     environment:
       NUXT_PUBLIC_SITE_URL: https://${PUBLIC_HOST:?Set PUBLIC_HOST}
+      NUXT_PUBLIC_SOCIAL_GITHUB_URL: ${NUXT_PUBLIC_SOCIAL_GITHUB_URL:-}
+      NUXT_PUBLIC_SOCIAL_DOUYIN_URL: ${NUXT_PUBLIC_SOCIAL_DOUYIN_URL:-}
+      NUXT_PUBLIC_SOCIAL_BILIBILI_URL: ${NUXT_PUBLIC_SOCIAL_BILIBILI_URL:-}
+      NUXT_PUBLIC_SOCIAL_XIAOHONGSHU_URL: ${NUXT_PUBLIC_SOCIAL_XIAOHONGSHU_URL:-}
     logging: *production-logging
     security_opt:
       - no-new-privileges:true
 
   admin-static:
-    image: ${IMAGE_REGISTRY:-local}/personal-blog-admin:${APP_VERSION:?Set APP_VERSION}
+    image: ${IMAGE_REGISTRY:-local}/wineclouds04-website-admin:${APP_VERSION:?Set APP_VERSION}
     restart: always
     logging: *production-logging
     security_opt:

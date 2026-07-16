@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.blog.site.mapper.SiteProfileMapper">
+    <select id="findProfileJson" resultType="string">
+        SELECT CAST(json_value AS CHAR)
+        FROM site_config
+        WHERE config_key = 'site.profile'
+        LIMIT 1
+    </select>
+
+    <insert id="upsertProfileJson">
+        INSERT INTO site_config (config_key, json_value, data_type, is_public, description)
+        VALUES ('site.profile', CAST(#{profileJson} AS JSON), 'JSON', 1, '公开个人资料')
+        ON DUPLICATE KEY UPDATE
+            json_value = CAST(#{profileJson} AS JSON),
+            data_type = 'JSON',
+            is_public = 1,
+            description = '公开个人资料'
+    </insert>
+</mapper>

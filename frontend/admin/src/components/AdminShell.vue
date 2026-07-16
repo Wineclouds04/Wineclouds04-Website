@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { RouterLink, useRoute, useRouter } from 'vue-router'
 
-import chevronDownIcon from '@fluentui/svg-icons/icons/chevron_down_20_regular.svg?url'
 import chevronLeftIcon from '@fluentui/svg-icons/icons/chevron_left_24_regular.svg?url'
 import chevronRightIcon from '@fluentui/svg-icons/icons/chevron_right_24_regular.svg?url'
 import commentIcon from '@fluentui/svg-icons/icons/comment_24_regular.svg?url'
+import dataBarIcon from '@fluentui/svg-icons/icons/data_bar_vertical_24_regular.svg?url'
 import documentIcon from '@fluentui/svg-icons/icons/document_24_regular.svg?url'
 import folderIcon from '@fluentui/svg-icons/icons/folder_24_regular.svg?url'
 import gridIcon from '@fluentui/svg-icons/icons/grid_24_regular.svg?url'
@@ -15,6 +15,8 @@ import imageIcon from '@fluentui/svg-icons/icons/image_24_regular.svg?url'
 import personIcon from '@fluentui/svg-icons/icons/person_24_regular.svg?url'
 import signOutIcon from '@fluentui/svg-icons/icons/sign_out_24_regular.svg?url'
 import tagIcon from '@fluentui/svg-icons/icons/tag_24_regular.svg?url'
+import moonIcon from '@fluentui/svg-icons/icons/weather_moon_24_regular.svg?url'
+import sunIcon from '@fluentui/svg-icons/icons/weather_sunny_24_regular.svg?url'
 
 import { useAuthStore } from '../stores/auth'
 
@@ -23,29 +25,43 @@ const router = useRouter()
 const auth = useAuthStore()
 
 const collapsed = ref(localStorage.getItem('admin-sidebar-collapsed') === 'true')
-const taxonomyOpen = ref(['categories', 'tags'].includes(String(route.name ?? '')))
+const storedTheme = localStorage.getItem('blog-theme')
+const adminTheme = ref(storedTheme === 'dark' || (!storedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light')
 
 const navigation = [
   { label: '仪表盘', to: '/', icon: homeIcon, match: ['dashboard'] },
   { label: '文章管理', to: '/articles', icon: documentIcon, match: ['articles', 'article-new', 'article-edit'] },
+  { label: '分类管理', to: '/categories', icon: folderIcon, match: ['categories'] },
+  { label: '标签管理', to: '/tags', icon: tagIcon, match: ['tags'] },
   { label: '媒体管理', to: '/media', icon: imageIcon, match: ['media'] },
+  { label: '站点资料', to: '/profile', icon: personIcon, match: ['profile'] },
+  { label: '站点统计', to: '/statistics', icon: dataBarIcon, match: ['statistics'] },
   { label: '评论管理', to: '/comments', icon: commentIcon, match: ['comments'] },
   { label: '操作日志', to: '/operation-logs', icon: historyIcon, match: ['operation-logs'] }
 ]
 
 const activeName = computed(() => String(route.name ?? ''))
-const taxonomyActive = computed(() => ['categories', 'tags'].includes(activeName.value))
 const pageTitle = computed(() => String(route.meta.title ?? '管理'))
 const displayName = computed(() => auth.user?.nickname || auth.user?.username || '管理员')
 const isEditorPage = computed(() => ['article-new', 'article-edit'].includes(activeName.value))
+const themeIcon = computed(() => adminTheme.value === 'dark' ? sunIcon : moonIcon)
+const themeLabel = computed(() => adminTheme.value === 'dark' ? '切换为浅色模式' : '切换为深色模式')
 
-watch(taxonomyActive, (active) => {
-  if (active) taxonomyOpen.value = true
-})
+const applyTheme = () => {
+  document.documentElement.dataset.theme = adminTheme.value
+  localStorage.setItem('blog-theme', adminTheme.value)
+}
+
+applyTheme()
 
 const toggleSidebar = () => {
   collapsed.value = !collapsed.value
   localStorage.setItem('admin-sidebar-collapsed', String(collapsed.value))
+}
+
+const toggleTheme = () => {
+  adminTheme.value = adminTheme.value === 'dark' ? 'light' : 'dark'
+  applyTheme()
 }
 
 const logout = async () => {
@@ -64,43 +80,7 @@ const logout = async () => {
 
       <nav class="sidebar-nav" aria-label="管理后台主导航">
         <RouterLink
-          v-for="item in navigation.slice(0, 2)"
-          :key="item.to"
-          :to="item.to"
-          class="sidebar-nav-item"
-          :class="{ active: item.match.includes(activeName) }"
-          :title="collapsed ? item.label : undefined"
-        >
-          <img :src="item.icon" alt="">
-          <span v-if="!collapsed">{{ item.label }}</span>
-        </RouterLink>
-
-        <div class="taxonomy-group" :class="{ 'is-open': taxonomyOpen, active: taxonomyActive }">
-          <button
-            class="sidebar-nav-item taxonomy-trigger"
-            type="button"
-            :aria-expanded="taxonomyOpen"
-            title="分类 / 标签"
-            @click="taxonomyOpen = !taxonomyOpen"
-          >
-            <img :src="folderIcon" alt="">
-            <span v-if="!collapsed">分类 / 标签</span>
-            <img v-if="!collapsed" class="taxonomy-chevron" :src="chevronDownIcon" alt="">
-          </button>
-          <div v-if="taxonomyOpen" class="taxonomy-children">
-            <RouterLink to="/categories" :class="{ active: activeName === 'categories' }">
-              <img :src="folderIcon" alt="">
-              <span>分类管理</span>
-            </RouterLink>
-            <RouterLink to="/tags" :class="{ active: activeName === 'tags' }">
-              <img :src="tagIcon" alt="">
-              <span>标签管理</span>
-            </RouterLink>
-          </div>
-        </div>
-
-        <RouterLink
-          v-for="item in navigation.slice(2)"
+          v-for="item in navigation"
           :key="item.to"
           :to="item.to"
           class="sidebar-nav-item"
@@ -126,6 +106,16 @@ const logout = async () => {
           <strong>{{ pageTitle }}</strong>
         </nav>
         <div class="admin-account">
+          <button
+            class="theme-toggle"
+            type="button"
+            :aria-label="themeLabel"
+            :aria-pressed="adminTheme === 'dark'"
+            :title="themeLabel"
+            @click="toggleTheme"
+          >
+            <img :src="themeIcon" alt="">
+          </button>
           <span class="admin-user"><img :src="personIcon" alt="">{{ displayName }}</span>
           <button type="button" @click="logout"><img :src="signOutIcon" alt="">退出</button>
         </div>
