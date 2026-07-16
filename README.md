@@ -243,7 +243,6 @@ chmod +x deploy/scripts/*.sh
 ├── deploy/
 │   ├── nginx/                本地与生产 Nginx 配置
 │   └── scripts/              发布、备份、恢复与冒烟检查脚本
-├── docs/                     项目设计与实施文档
 ├── .env.example              公共安全的环境变量模板
 ├── package.json              npm workspace 与根级命令
 └── README.md                 项目入口文档

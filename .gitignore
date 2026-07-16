@@ -4,6 +4,7 @@
 !.env.production.example
 
 deploy/certs/
+.codex-logs/
 
 node_modules/
 **/node_modules/
@@ -17,6 +18,13 @@ dist/
 target/
 **/target/
 *.tsbuildinfo
+coverage/
+**/coverage/
+
+*.zip
+*.tar
+*.tar.gz
+*.tgz
 
 .superpowers/
 docs/superpowers/
