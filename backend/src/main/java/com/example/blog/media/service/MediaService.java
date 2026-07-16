@@ -14,7 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.example.blog.media.config.OssProperties;
+import com.example.blog.media.config.CosProperties;
 import com.example.blog.media.config.MediaLifecycleProperties;
 import com.example.blog.media.dto.MediaAssetResponse;
 import com.example.blog.media.dto.MediaConfigResponse;
@@ -31,14 +31,14 @@ public class MediaService {
     private final MediaMapper mediaMapper;
     private final ObjectStorage objectStorage;
     private final ImageInspector imageInspector;
-    private final OssProperties properties;
+    private final CosProperties properties;
     private final MediaLifecycleProperties lifecycleProperties;
 
     public MediaService(
             MediaMapper mediaMapper,
             ObjectStorage objectStorage,
             ImageInspector imageInspector,
-            OssProperties properties,
+            CosProperties properties,
             MediaLifecycleProperties lifecycleProperties
     ) {
         this.mediaMapper = mediaMapper;
@@ -67,7 +67,7 @@ public class MediaService {
     @Transactional
     public MediaAssetResponse upload(MultipartFile file, String altText, Long userId) {
         if (!objectStorage.configured()) {
-            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "OSS 尚未配置");
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "COS 尚未配置");
         }
         if (file == null || file.isEmpty()) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "请选择要上传的图片");
@@ -114,7 +114,7 @@ public class MediaService {
             try {
                 objectStorage.delete(objectKey);
             } catch (RuntimeException ignored) {
-                // The orphan can be reconciled from OSS inventory if compensation also fails.
+                // The orphan can be reconciled from COS inventory if compensation also fails.
             }
             throw exception;
         }
@@ -131,7 +131,7 @@ public class MediaService {
 
     public void delete(Long id) {
         if (!objectStorage.configured()) {
-            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "OSS 尚未配置");
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "COS 尚未配置");
         }
         MediaAssetRecord asset = require(id);
         if (asset.referenceCount() > 0) {

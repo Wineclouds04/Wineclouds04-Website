@@ -51,7 +51,7 @@ public class MediaLifecycleProcessor {
                 mediaService.processDeleteCandidate(asset, now);
             } catch (RuntimeException exception) {
                 LOGGER.warn(
-                        "OSS media deletion failed; retry scheduled. mediaId={}, attempt={}",
+                        "COS media deletion failed; retry scheduled. mediaId={}, attempt={}",
                         asset.id(),
                         asset.deleteAttempts() + 1,
                         exception

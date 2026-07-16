@@ -117,21 +117,22 @@ blog:
       username: ${ADMIN_INITIAL_USERNAME:}
       password: ${ADMIN_INITIAL_PASSWORD:}
       nickname: ${ADMIN_INITIAL_NICKNAME:Administrator}
-  oss:
-    region: ${OSS_REGION:}
-    endpoint: ${OSS_ENDPOINT:}
-    bucket: ${OSS_BUCKET:}
-    cdn-domain: ${OSS_CDN_DOMAIN:}
-    object-prefix: ${OSS_OBJECT_PREFIX:blog/dev}
-    max-image-size: ${OSS_MAX_IMAGE_SIZE:10485760}
-    max-image-width: ${OSS_MAX_IMAGE_WIDTH:12000}
-    max-image-height: ${OSS_MAX_IMAGE_HEIGHT:12000}
+  cos:
+    region: ${COS_REGION:}
+    bucket: ${COS_BUCKET:}
+    secret-id: ${COS_SECRET_ID:}
+    secret-key: ${COS_SECRET_KEY:}
+    cdn-domain: ${COS_CDN_DOMAIN:}
+    object-prefix: ${COS_OBJECT_PREFIX:blog/dev}
+    max-image-size: ${COS_MAX_IMAGE_SIZE:10485760}
+    max-image-width: ${COS_MAX_IMAGE_WIDTH:12000}
+    max-image-height: ${COS_MAX_IMAGE_HEIGHT:12000}
   media-lifecycle:
-    orphan-grace-period: ${OSS_ORPHAN_GRACE_PERIOD:24h}
-    delete-retry-base-delay: ${OSS_DELETE_RETRY_BASE_DELAY:1m}
-    stale-delete-timeout: ${OSS_STALE_DELETE_TIMEOUT:15m}
-    cleanup-batch-size: ${OSS_CLEANUP_BATCH_SIZE:50}
-    cleanup-interval: ${OSS_CLEANUP_INTERVAL:300000}
+    orphan-grace-period: ${COS_ORPHAN_GRACE_PERIOD:24h}
+    delete-retry-base-delay: ${COS_DELETE_RETRY_BASE_DELAY:1m}
+    stale-delete-timeout: ${COS_STALE_DELETE_TIMEOUT:15m}
+    cleanup-batch-size: ${COS_CLEANUP_BATCH_SIZE:50}
+    cleanup-interval: ${COS_CLEANUP_INTERVAL:300000}
   mail:
     enabled: ${MAIL_ENABLED:false}
     from: ${MAIL_FROM:}

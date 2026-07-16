@@ -3,11 +3,12 @@ package com.example.blog.media.config;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.util.StringUtils;
 
-@ConfigurationProperties("blog.oss")
-public record OssProperties(
+@ConfigurationProperties("blog.cos")
+public record CosProperties(
         String region,
-        String endpoint,
         String bucket,
+        String secretId,
+        String secretKey,
         String cdnDomain,
         String objectPrefix,
         long maxImageSize,
@@ -17,7 +18,7 @@ public record OssProperties(
     public boolean configured() {
         return StringUtils.hasText(region)
                 && StringUtils.hasText(bucket)
-                && StringUtils.hasText(System.getenv("OSS_ACCESS_KEY_ID"))
-                && StringUtils.hasText(System.getenv("OSS_ACCESS_KEY_SECRET"));
+                && StringUtils.hasText(secretId)
+                && StringUtils.hasText(secretKey);
     }
 }
