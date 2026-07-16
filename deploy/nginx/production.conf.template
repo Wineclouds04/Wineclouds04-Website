@@ -141,6 +141,13 @@ server {
         return 404;
     }
 
+    location ^~ /images/ {
+        proxy_pass http://blog_web;
+        proxy_http_version 1.1;
+        proxy_set_header Host ${PUBLIC_HOST};
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
     location / {
         proxy_pass http://blog_admin;
         proxy_http_version 1.1;

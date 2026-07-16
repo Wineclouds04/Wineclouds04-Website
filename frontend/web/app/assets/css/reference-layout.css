@@ -347,10 +347,6 @@
   height: 19px;
 }
 
-.profile-links a[aria-disabled="true"] {
-  cursor: default;
-}
-
 .profile-links a:hover,
 .profile-links a:focus-visible {
   color: #fff;

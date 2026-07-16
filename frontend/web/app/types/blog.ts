@@ -57,6 +57,11 @@ export interface HomeResponse {
   articleCount: number
 }
 
+export interface SiteProfile {
+  avatarUrl: string
+  signature: string
+}
+
 export interface SiteStatistics {
   onlineVisitors: number
   todayViews: number
