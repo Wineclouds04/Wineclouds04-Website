@@ -14,6 +14,16 @@
 
 把写作、发布、互动、媒体管理和站点运营放进同一套系统，同时保留对数据、域名与部署环境的完整控制。
 
+<p>
+  <a href="package.json"><img src="https://img.shields.io/badge/version-0.1.0-c96b52" alt="Version 0.1.0"></a>
+  <a href="frontend/web/package.json"><img src="https://img.shields.io/badge/Nuxt-4.4.8-00DC82?logo=nuxtdotjs&amp;logoColor=white" alt="Nuxt 4.4.8"></a>
+  <a href="frontend/web/package.json"><img src="https://img.shields.io/badge/Vue-3.5.39-42B883?logo=vuedotjs&amp;logoColor=white" alt="Vue 3.5.39"></a>
+  <a href="backend/pom.xml"><img src="https://img.shields.io/badge/Spring_Boot-4.1.0-6DB33F?logo=springboot&amp;logoColor=white" alt="Spring Boot 4.1.0"></a>
+  <a href="backend/pom.xml"><img src="https://img.shields.io/badge/Java-25-E76F00?logo=openjdk&amp;logoColor=white" alt="Java 25"></a>
+  <a href="https://wineclouds.cn"><img src="https://img.shields.io/website?url=https%3A%2F%2Fwineclouds.cn&amp;up_message=online&amp;up_color=0078D4&amp;down_message=offline&amp;down_color=lightgrey&amp;label=site" alt="Site status"></a>
+  <a href="#开发者文档"><img src="https://img.shields.io/badge/docs-online-0078D4" alt="Documentation"></a>
+</p>
+
 [**访问在线示例**](https://wineclouds.cn) · [功能概览](#功能概览) · [开发者文档](#开发者文档) · [源码仓库](https://github.com/Wineclouds04/Wineclouds04-Website)
 
 </div>
