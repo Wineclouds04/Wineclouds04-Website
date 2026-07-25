@@ -21,6 +21,7 @@ import com.example.blog.media.dto.MediaConfigResponse;
 import com.example.blog.media.dto.MediaPageResponse;
 import com.example.blog.media.mapper.MediaMapper;
 import com.example.blog.media.model.MediaAssetRecord;
+import com.example.blog.media.service.AudioInspector.InspectedAudio;
 import com.example.blog.media.service.ImageInspector.InspectedImage;
 import com.example.blog.media.storage.ObjectStorage;
 import com.example.blog.shared.error.ApiException;
@@ -31,6 +32,7 @@ public class MediaService {
     private final MediaMapper mediaMapper;
     private final ObjectStorage objectStorage;
     private final ImageInspector imageInspector;
+    private final AudioInspector audioInspector;
     private final CosProperties properties;
     private final MediaLifecycleProperties lifecycleProperties;
 
@@ -38,18 +40,24 @@ public class MediaService {
             MediaMapper mediaMapper,
             ObjectStorage objectStorage,
             ImageInspector imageInspector,
+            AudioInspector audioInspector,
             CosProperties properties,
             MediaLifecycleProperties lifecycleProperties
     ) {
         this.mediaMapper = mediaMapper;
         this.objectStorage = objectStorage;
         this.imageInspector = imageInspector;
+        this.audioInspector = audioInspector;
         this.properties = properties;
         this.lifecycleProperties = lifecycleProperties;
     }
 
     public MediaConfigResponse config() {
-        return new MediaConfigResponse(objectStorage.configured(), properties.maxImageSize());
+        return new MediaConfigResponse(
+                objectStorage.configured(),
+                properties.maxImageSize(),
+                properties.maxAudioSize()
+        );
     }
 
     public MediaPageResponse findPage(int page, int pageSize) {
@@ -107,6 +115,47 @@ public class MediaService {
                     image.height(),
                     sha256(content),
                     normalizedAlt,
+                    userId
+            );
+            return findById(mediaMapper.lastInsertId());
+        } catch (RuntimeException exception) {
+            try {
+                objectStorage.delete(objectKey);
+            } catch (RuntimeException ignored) {
+                // The orphan can be reconciled from COS inventory if compensation also fails.
+            }
+            throw exception;
+        }
+    }
+
+    @Transactional
+    public MediaAssetResponse uploadMusic(MultipartFile file, Long userId) {
+        if (!objectStorage.configured()) {
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "COS 尚未配置");
+        }
+        if (file == null || file.isEmpty()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "请选择要上传的 MP3 文件");
+        }
+        if (file.getSize() > properties.maxAudioSize()) {
+            throw new ApiException(HttpStatus.CONTENT_TOO_LARGE, "MP3 文件超过上传大小限制");
+        }
+
+        String originalName = safeOriginalName(file.getOriginalFilename());
+        byte[] content = readContent(file);
+        InspectedAudio audio = audioInspector.inspect(content, file.getContentType(), originalName);
+        String objectKey = objectKey(audio.extension());
+        objectStorage.put(objectKey, content, audio.contentType());
+        try {
+            mediaMapper.insert(
+                    objectKey,
+                    originalName,
+                    audio.contentType(),
+                    audio.extension(),
+                    content.length,
+                    null,
+                    null,
+                    sha256(content),
+                    null,
                     userId
             );
             return findById(mediaMapper.lastInsertId());
@@ -226,6 +275,14 @@ public class MediaService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "原始文件名过长");
         }
         return safe;
+    }
+
+    private byte[] readContent(MultipartFile file) {
+        try {
+            return file.getBytes();
+        } catch (java.io.IOException exception) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "无法读取上传文件");
+        }
     }
 
     private String sha256(byte[] content) {

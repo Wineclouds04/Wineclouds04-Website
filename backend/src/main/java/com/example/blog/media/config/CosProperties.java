@@ -12,6 +12,7 @@ public record CosProperties(
         String cdnDomain,
         String objectPrefix,
         long maxImageSize,
+        long maxAudioSize,
         int maxImageWidth,
         int maxImageHeight
 ) {

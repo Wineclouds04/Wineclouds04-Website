@@ -86,7 +86,7 @@ const editAltText = async (asset: MediaAsset) => {
 }
 
 const remove = async (asset: MediaAsset) => {
-  if (!canWrite.value || !window.confirm(`确认删除图片“${asset.originalName}”？`)) return
+  if (!canWrite.value || !window.confirm(`确认删除媒体“${asset.originalName}”？`)) return
   try {
     await api.delete(`/admin/media/${asset.id}`)
     await load()
@@ -142,17 +142,28 @@ onMounted(load)
         <span>上传第一张图片，为文章添一点颜色。</span>
       </div>
       <article v-for="asset in assets" :key="asset.id">
-        <div class="media-thumb">
-          <img :src="asset.url" :alt="asset.altText || asset.originalName">
+        <div class="media-thumb" :class="{ 'media-thumb-audio': asset.mediaType === 'audio/mpeg' }">
+          <img
+            v-if="asset.mediaType.startsWith('image/')"
+            :src="asset.url"
+            :alt="asset.altText || asset.originalName"
+          >
+          <span v-else aria-hidden="true">MP3</span>
         </div>
         <strong>{{ asset.originalName }}</strong>
         <small>
-          {{ asset.width }}×{{ asset.height }} ·
+          <template v-if="asset.width && asset.height">{{ asset.width }}×{{ asset.height }} · </template>
           {{ (asset.sizeBytes / 1024).toFixed(1) }} KB
         </small>
         <div>
           <button type="button" @click="copyUrl(asset)">复制链接</button>
-          <button v-if="canWrite" type="button" @click="editAltText(asset)">编辑说明</button>
+          <button
+            v-if="canWrite && asset.mediaType.startsWith('image/')"
+            type="button"
+            @click="editAltText(asset)"
+          >
+            编辑说明
+          </button>
           <button
             v-if="canWrite"
             class="danger"

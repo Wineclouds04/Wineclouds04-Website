@@ -76,6 +76,23 @@ public class AdminMediaController {
         return created;
     }
 
+    @PostMapping("/music")
+    @PreAuthorize("hasRole('ADMIN')")
+    MediaAssetResponse uploadMusic(
+            @RequestParam MultipartFile file,
+            @AuthenticationPrincipal Jwt jwt
+    ) {
+        rateLimits.enforce(
+                "music-upload",
+                jwt.getSubject(),
+                5,
+                Duration.ofMinutes(1)
+        );
+        MediaAssetResponse created = mediaService.uploadMusic(file, Long.valueOf(jwt.getSubject()));
+        operationLogs.record(Long.valueOf(jwt.getSubject()), "MEDIA", "UPLOAD_MUSIC", created.id(), "{}");
+        return created;
+    }
+
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     MediaAssetResponse update(

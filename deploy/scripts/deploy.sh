@@ -27,5 +27,8 @@ else
 fi
 "${compose[@]}" build --pull backend web admin-static
 "${compose[@]}" up -d --remove-orphans --wait
+# Bind-mounted Nginx templates are rendered only when its entrypoint starts.
+# Compose does not recreate the container when only template contents change.
+"${compose[@]}" up -d --no-deps --force-recreate --wait nginx
 printf '%s' "$version" > "$release_file"
 echo "Deployment $version completed after Docker Compose health checks."

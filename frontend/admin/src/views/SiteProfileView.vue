@@ -33,11 +33,14 @@ const form = reactive<SiteProfile>({
 const loading = ref(true)
 const saving = ref(false)
 const uploading = ref(false)
+const uploadingMusic = ref(false)
 const error = ref('')
 const success = ref('')
 const mediaConfigured = ref(false)
 const maxImageSize = ref(10 * 1024 * 1024)
+const maxAudioSize = ref(10 * 1024 * 1024)
 const fileInput = ref<HTMLInputElement | null>(null)
+const musicFileInput = ref<HTMLInputElement | null>(null)
 const previewAvatarUrl = computed(() => form.avatarUrl.trim() || defaultAvatarUrl)
 const avatarPreviewError = ref(false)
 
@@ -51,7 +54,7 @@ const load = async () => {
   try {
     const [profile, mediaConfig] = await Promise.all([
       api.get<SiteProfile>('/admin/profile'),
-      api.get<{ configured: boolean, maxImageSize: number }>('/admin/media/config')
+      api.get<{ configured: boolean, maxImageSize: number, maxAudioSize: number }>('/admin/media/config')
     ])
     form.avatarUrl = profile.avatarUrl
     form.signature = profile.signature
@@ -62,6 +65,7 @@ const load = async () => {
     form.musicCoverUrl = profile.musicCoverUrl
     mediaConfigured.value = mediaConfig.configured
     maxImageSize.value = mediaConfig.maxImageSize
+    maxAudioSize.value = mediaConfig.maxAudioSize
   } catch (cause) {
     error.value = cause instanceof ApiError ? cause.message : '站点资料加载失败'
   } finally {
@@ -129,6 +133,38 @@ const uploadAvatar = async (event: Event) => {
 
 const markAvatarPreviewUnavailable = () => {
   avatarPreviewError.value = true
+}
+
+const chooseMusic = () => musicFileInput.value?.click()
+
+const uploadMusic = async (event: Event) => {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file || uploadingMusic.value || !canWrite.value) return
+  if (file.size > maxAudioSize.value) {
+    error.value = `MP3 文件不能超过 ${Math.round(maxAudioSize.value / 1024 / 1024)} MB`
+    return
+  }
+
+  const body = new FormData()
+  body.append('file', file)
+  uploadingMusic.value = true
+  error.value = ''
+  success.value = ''
+  try {
+    const asset = await api.postForm<MediaAsset>('/admin/media/music', body)
+    form.musicUrl = asset.url
+    form.musicEnabled = true
+    if (!form.musicTitle.trim()) {
+      form.musicTitle = file.name.replace(/\.mp3$/i, '')
+    }
+    success.value = 'MP3 已上传并替换音乐地址。点击“保存资料”后发布到归档页。'
+  } catch (cause) {
+    error.value = cause instanceof ApiError ? cause.message : 'MP3 上传失败'
+  } finally {
+    uploadingMusic.value = false
+  }
 }
 
 onMounted(load)
@@ -226,6 +262,24 @@ onMounted(load)
               <input v-model.trim="form.musicUrl" :disabled="!canWrite" maxlength="1000" placeholder="https://cdn.example.com/track.mp3">
               <small>支持站内路径或 HTTPS 音频地址；请使用拥有播放权的音频文件。</small>
             </label>
+            <div class="profile-upload-row">
+              <input
+                ref="musicFileInput"
+                class="visually-hidden"
+                type="file"
+                accept=".mp3,audio/mpeg,audio/mp3"
+                @change="uploadMusic"
+              >
+              <button
+                type="button"
+                :disabled="!canWrite || !mediaConfigured || uploadingMusic"
+                @click="chooseMusic"
+              >
+                {{ uploadingMusic ? '上传中…' : form.musicUrl ? '替换 MP3' : '上传 MP3' }}
+              </button>
+              <small v-if="!mediaConfigured">对象存储未配置时，仍可填写已有 MP3 链接。</small>
+              <small v-else>最大 {{ Math.round(maxAudioSize / 1024 / 1024) }} MB，上传后仍需保存资料。</small>
+            </div>
             <label>
               <span>专辑封面地址</span>
               <input v-model.trim="form.musicCoverUrl" :disabled="!canWrite" maxlength="1000" placeholder="/images/album-cover.webp">

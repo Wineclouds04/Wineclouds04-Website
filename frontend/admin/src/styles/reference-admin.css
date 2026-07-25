@@ -1105,6 +1105,18 @@ textarea:focus-visible {
   object-fit: cover;
 }
 
+.media-thumb-audio {
+  display: grid;
+  place-items: center;
+  color: var(--admin-primary);
+  background:
+    radial-gradient(circle, rgb(64 150 210 / 16%) 0 24%, transparent 25%),
+    var(--admin-page);
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+
 .media-grid article strong {
   overflow: hidden;
   color: var(--admin-text);

@@ -58,6 +58,7 @@ Wineclouds04 Website 不只是一个博客页面，而是一套可以长期维�
 - RSS 订阅、Sitemap、robots.txt 和完整页面元数据
 - 明暗主题、移动端适配和“减少动画”系统偏好支持
 - 匿名点赞、两级评论、公开统计和 GitHub 贡献日历
+- 顶栏单按钮背景音乐播放器，支持自动播放尝试、播放/暂停和循环播放，音量沿用浏览器与系统媒体设置
 - 可配置 GitHub、抖音、B 站和小红书等公开入口
 
 ### 内容管理体验
@@ -66,6 +67,7 @@ Wineclouds04 Website 不只是一个博客页面，而是一套可以长期维�
 - Markdown 编辑、实时预览、自动保存和文章全生命周期管理
 - 分类、标签、媒体资源、评论审核与管理员回复
 - 站点资料、音乐播放器、访问统计、热门内容与趋势数据配置
+- 通过腾讯云 COS 上传或替换 MP3，并保护站点正在使用的音乐资源不被媒体清理任务误删
 - 操作日志、验证码、访问限流和会话撤销
 
 ---
@@ -343,7 +345,7 @@ mvn package
 
 ### 可选集成
 
-- **腾讯云 COS**：配置 `COS_REGION`、`COS_BUCKET`、`COS_SECRET_ID`、`COS_SECRET_KEY` 后启用媒体上传。Bucket 名称需包含 AppId 后缀。
+- **腾讯云 COS**：配置 `COS_REGION`、`COS_BUCKET`、`COS_SECRET_ID`、`COS_SECRET_KEY` 后启用图片与 MP3 上传。Bucket 名称需包含 AppId 后缀；`COS_MAX_AUDIO_SIZE` 控制 MP3 上限，默认 10 MB。
 - **SMTP**：设置 `MAIL_ENABLED=true`，并配置 `MAIL_HOST`、`MAIL_PORT`、账号、密码和发件地址后启用评论回复通知。
 - **GitHub 贡献图**：设置 `GITHUB_ENABLED=true`、`GITHUB_USERNAME` 和仅存放在服务端的 `GITHUB_TOKEN`。
 - **公开社交入口**：`NUXT_PUBLIC_SOCIAL_*` 变量会发送到浏览器，只能填写公开主页 URL，不能保存任何密钥。
@@ -414,6 +416,13 @@ tar -tzf ".\artifacts\releases\wineclouds-deploy-$version.tar.gz"
 ```
 
 上传、校验、同步、回滚和 SSH 密钥配置见 [生产服务器升级手册](docs/deployment/server-upgrade.md)。
+
+已构建过的不可变版本可以通过回滚脚本重新启用。回滚只切换应用镜像，不会自动改写数据库：
+
+```bash
+ROLLBACK_CONFIRM=2026.07.22.1 \
+  ./deploy/scripts/rollback.sh 2026.07.22.1
+```
 
 ## 备份与恢复
 
