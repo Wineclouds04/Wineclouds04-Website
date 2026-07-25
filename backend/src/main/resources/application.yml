@@ -131,6 +131,7 @@ blog:
     cdn-domain: ${COS_CDN_DOMAIN:}
     object-prefix: ${COS_OBJECT_PREFIX:blog/dev}
     max-image-size: ${COS_MAX_IMAGE_SIZE:10485760}
+    max-audio-size: ${COS_MAX_AUDIO_SIZE:10485760}
     max-image-width: ${COS_MAX_IMAGE_WIDTH:12000}
     max-image-height: ${COS_MAX_IMAGE_HEIGHT:12000}
   media-lifecycle:

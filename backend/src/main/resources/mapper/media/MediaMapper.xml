@@ -6,17 +6,28 @@
     <sql id="columns">
         m.id, m.object_key, m.original_name, m.media_type, m.extension, m.size_bytes,
         m.width, m.height, m.sha256, m.alt_text,
-        CASE WHEN m.deleted_at IS NULL AND EXISTS (
-            SELECT 1 FROM article a
-            WHERE a.deleted_at IS NULL
-              AND (a.cover_media_id = m.id
-                   OR INSTR(a.content_markdown, m.object_key) > 0)
+        CASE WHEN m.deleted_at IS NULL AND (
+            EXISTS (
+                SELECT 1 FROM article a
+                WHERE a.deleted_at IS NULL
+                  AND (a.cover_media_id = m.id
+                       OR INSTR(a.content_markdown, m.object_key) > 0)
+            )
+            OR EXISTS (
+                SELECT 1 FROM site_config sc
+                WHERE sc.config_key = 'site.profile'
+                  AND INSTR(CAST(sc.json_value AS CHAR), m.object_key) > 0
+            )
         ) THEN 'ACTIVE' ELSE m.status END AS status,
         (
             SELECT COUNT(*) FROM article a
             WHERE a.deleted_at IS NULL
               AND (a.cover_media_id = m.id
                    OR INSTR(a.content_markdown, m.object_key) > 0)
+        ) + EXISTS (
+            SELECT 1 FROM site_config sc
+            WHERE sc.config_key = 'site.profile'
+              AND INSTR(CAST(sc.json_value AS CHAR), m.object_key) > 0
         ) AS reference_count,
         m.unreferenced_at, m.delete_attempts, m.next_delete_retry_at,
         m.last_delete_error, m.created_by, m.created_at, m.deleted_at
@@ -69,26 +80,47 @@
                 WHERE a.deleted_at IS NULL
                   AND (a.cover_media_id = media_asset.id
                        OR INSTR(a.content_markdown, media_asset.object_key) > 0)
+            ) + EXISTS (
+                SELECT 1
+                FROM site_config sc
+                WHERE sc.config_key = 'site.profile'
+                  AND INSTR(CAST(sc.json_value AS CHAR), media_asset.object_key) > 0
             ),
             unreferenced_at = CASE
-                WHEN EXISTS (
-                    SELECT 1
-                    FROM article a
-                    WHERE a.deleted_at IS NULL
-                      AND (a.cover_media_id = media_asset.id
-                           OR INSTR(a.content_markdown, media_asset.object_key) > 0)
+                WHEN (
+                    EXISTS (
+                        SELECT 1
+                        FROM article a
+                        WHERE a.deleted_at IS NULL
+                          AND (a.cover_media_id = media_asset.id
+                               OR INSTR(a.content_markdown, media_asset.object_key) > 0)
+                    )
+                    OR EXISTS (
+                        SELECT 1
+                        FROM site_config sc
+                        WHERE sc.config_key = 'site.profile'
+                          AND INSTR(CAST(sc.json_value AS CHAR), media_asset.object_key) > 0
+                    )
                 ) THEN NULL
                 WHEN status = 'ACTIVE' THEN #{now}
                 WHEN unreferenced_at IS NULL THEN created_at
                 ELSE unreferenced_at
             END,
             status = CASE
-                WHEN EXISTS (
-                    SELECT 1
-                    FROM article a
-                    WHERE a.deleted_at IS NULL
-                      AND (a.cover_media_id = media_asset.id
-                           OR INSTR(a.content_markdown, media_asset.object_key) > 0)
+                WHEN (
+                    EXISTS (
+                        SELECT 1
+                        FROM article a
+                        WHERE a.deleted_at IS NULL
+                          AND (a.cover_media_id = media_asset.id
+                               OR INSTR(a.content_markdown, media_asset.object_key) > 0)
+                    )
+                    OR EXISTS (
+                        SELECT 1
+                        FROM site_config sc
+                        WHERE sc.config_key = 'site.profile'
+                          AND INSTR(CAST(sc.json_value AS CHAR), media_asset.object_key) > 0
+                    )
                 ) THEN 'ACTIVE'
                 WHEN status = 'ACTIVE' THEN 'PENDING'
                 ELSE status
@@ -136,6 +168,12 @@
                 AND (a.cover_media_id = media_asset.id
                      OR INSTR(a.content_markdown, media_asset.object_key) > 0)
           )
+          AND NOT EXISTS (
+              SELECT 1
+              FROM site_config sc
+              WHERE sc.config_key = 'site.profile'
+                AND INSTR(CAST(sc.json_value AS CHAR), media_asset.object_key) > 0
+          )
     </update>
 
     <update id="claimLifecycleDelete">
@@ -147,16 +185,22 @@
             last_delete_error = NULL
         WHERE id = #{id}
           AND status = #{expectedStatus}
+          AND NOT EXISTS (
+              SELECT 1
+              FROM article a
+              WHERE a.deleted_at IS NULL
+                AND (a.cover_media_id = media_asset.id
+                     OR INSTR(a.content_markdown, media_asset.object_key) > 0)
+          )
+          AND NOT EXISTS (
+              SELECT 1
+              FROM site_config sc
+              WHERE sc.config_key = 'site.profile'
+                AND INSTR(CAST(sc.json_value AS CHAR), media_asset.object_key) > 0
+          )
           AND (
               (#{expectedStatus} = 'ORPHAN'
-                  AND deleted_at IS NULL
-                  AND NOT EXISTS (
-                      SELECT 1
-                      FROM article a
-                      WHERE a.deleted_at IS NULL
-                        AND (a.cover_media_id = media_asset.id
-                             OR INSTR(a.content_markdown, media_asset.object_key) > 0)
-                  ))
+                  AND deleted_at IS NULL)
               OR
               (#{expectedStatus} IN ('DELETE_FAILED', 'DELETING')
                   AND next_delete_retry_at &lt;= #{now})
