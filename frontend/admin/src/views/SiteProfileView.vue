@@ -16,6 +16,15 @@ type SiteProfile = {
   musicArtist: string
   musicUrl: string
   musicCoverUrl: string
+  musicPlaylist: MusicTrack[]
+  musicVolume: number
+}
+
+type MusicTrack = {
+  title: string
+  artist: string
+  url: string
+  coverUrl: string
 }
 
 const defaultAvatarUrl = '/images/wineclouds-avatar.webp'
@@ -28,7 +37,9 @@ const form = reactive<SiteProfile>({
   musicTitle: '',
   musicArtist: '',
   musicUrl: '',
-  musicCoverUrl: ''
+  musicCoverUrl: '',
+  musicPlaylist: [],
+  musicVolume: 100
 })
 const loading = ref(true)
 const saving = ref(false)
@@ -48,6 +59,36 @@ watch(previewAvatarUrl, () => {
   avatarPreviewError.value = false
 })
 
+const legacyMusicTrack = (profile: SiteProfile): MusicTrack[] => {
+  if (!profile.musicUrl) return []
+  return [{
+    title: profile.musicTitle,
+    artist: profile.musicArtist,
+    url: profile.musicUrl,
+    coverUrl: profile.musicCoverUrl
+  }]
+}
+
+const applyProfile = (profile: SiteProfile) => {
+  const playlist = profile.musicPlaylist?.length ? profile.musicPlaylist : legacyMusicTrack(profile)
+  form.avatarUrl = profile.avatarUrl
+  form.signature = profile.signature
+  form.musicEnabled = profile.musicEnabled
+  form.musicTitle = profile.musicTitle
+  form.musicArtist = profile.musicArtist
+  form.musicUrl = profile.musicUrl
+  form.musicCoverUrl = profile.musicCoverUrl
+  form.musicPlaylist = playlist.map((track) => ({ ...track }))
+  form.musicVolume = typeof profile.musicVolume === 'number' ? profile.musicVolume : 100
+}
+
+const firstTrackPayload = () => form.musicPlaylist[0] ?? {
+  title: form.musicTitle,
+  artist: form.musicArtist,
+  url: form.musicUrl,
+  coverUrl: form.musicCoverUrl
+}
+
 const load = async () => {
   loading.value = true
   error.value = ''
@@ -56,13 +97,7 @@ const load = async () => {
       api.get<SiteProfile>('/admin/profile'),
       api.get<{ configured: boolean, maxImageSize: number, maxAudioSize: number }>('/admin/media/config')
     ])
-    form.avatarUrl = profile.avatarUrl
-    form.signature = profile.signature
-    form.musicEnabled = profile.musicEnabled
-    form.musicTitle = profile.musicTitle
-    form.musicArtist = profile.musicArtist
-    form.musicUrl = profile.musicUrl
-    form.musicCoverUrl = profile.musicCoverUrl
+    applyProfile(profile)
     mediaConfigured.value = mediaConfig.configured
     maxImageSize.value = mediaConfig.maxImageSize
     maxAudioSize.value = mediaConfig.maxAudioSize
@@ -79,22 +114,19 @@ const save = async () => {
   error.value = ''
   success.value = ''
   try {
+    const primaryTrack = firstTrackPayload()
     const profile = await api.put<SiteProfile>('/admin/profile', {
       avatarUrl: form.avatarUrl,
       signature: form.signature,
       musicEnabled: form.musicEnabled,
-      musicTitle: form.musicTitle,
-      musicArtist: form.musicArtist,
-      musicUrl: form.musicUrl,
-      musicCoverUrl: form.musicCoverUrl
+      musicTitle: primaryTrack.title,
+      musicArtist: primaryTrack.artist,
+      musicUrl: primaryTrack.url,
+      musicCoverUrl: primaryTrack.coverUrl,
+      musicPlaylist: form.musicPlaylist,
+      musicVolume: form.musicVolume
     })
-    form.avatarUrl = profile.avatarUrl
-    form.signature = profile.signature
-    form.musicEnabled = profile.musicEnabled
-    form.musicTitle = profile.musicTitle
-    form.musicArtist = profile.musicArtist
-    form.musicUrl = profile.musicUrl
-    form.musicCoverUrl = profile.musicCoverUrl
+    applyProfile(profile)
     success.value = '站点资料已保存；切换回公开站时会自动刷新资料。'
   } catch (cause) {
     error.value = cause instanceof ApiError ? cause.message : '站点资料保存失败'
@@ -137,6 +169,29 @@ const markAvatarPreviewUnavailable = () => {
 
 const chooseMusic = () => musicFileInput.value?.click()
 
+const addMusicTrack = () => {
+  if (!canWrite.value) return
+  form.musicPlaylist.push({
+    title: '',
+    artist: '',
+    url: '',
+    coverUrl: ''
+  })
+}
+
+const removeMusicTrack = (index: number) => {
+  if (!canWrite.value) return
+  form.musicPlaylist.splice(index, 1)
+}
+
+const moveMusicTrack = (index: number, offset: -1 | 1) => {
+  if (!canWrite.value) return
+  const nextIndex = index + offset
+  if (nextIndex < 0 || nextIndex >= form.musicPlaylist.length) return
+  const [track] = form.musicPlaylist.splice(index, 1)
+  form.musicPlaylist.splice(nextIndex, 0, track)
+}
+
 const uploadMusic = async (event: Event) => {
   const input = event.target as HTMLInputElement
   const file = input.files?.[0]
@@ -154,12 +209,14 @@ const uploadMusic = async (event: Event) => {
   success.value = ''
   try {
     const asset = await api.postForm<MediaAsset>('/admin/media/music', body)
-    form.musicUrl = asset.url
     form.musicEnabled = true
-    if (!form.musicTitle.trim()) {
-      form.musicTitle = file.name.replace(/\.mp3$/i, '')
-    }
-    success.value = 'MP3 已上传并替换音乐地址。点击“保存资料”后发布到归档页。'
+    form.musicPlaylist.push({
+      title: file.name.replace(/\.mp3$/i, ''),
+      artist: '',
+      url: asset.url,
+      coverUrl: ''
+    })
+    success.value = 'MP3 已上传并加入播放列表。调整顺序后点击“保存资料”发布。'
   } catch (cause) {
     error.value = cause instanceof ApiError ? cause.message : 'MP3 上传失败'
   } finally {
@@ -249,19 +306,84 @@ onMounted(load)
           </label>
 
           <div v-if="form.musicEnabled" class="music-settings-fields">
-            <label>
-              <span>曲目名称</span>
-              <input v-model.trim="form.musicTitle" :disabled="!canWrite" maxlength="120" placeholder="夜间播放列表">
+            <label class="music-volume-control">
+              <span>播放音量 {{ form.musicVolume }}%</span>
+              <input
+                v-model.number="form.musicVolume"
+                :disabled="!canWrite"
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+              >
             </label>
-            <label>
-              <span>作者</span>
-              <input v-model.trim="form.musicArtist" :disabled="!canWrite" maxlength="120" placeholder="Wineclouds">
-            </label>
-            <label>
-              <span>音乐地址</span>
-              <input v-model.trim="form.musicUrl" :disabled="!canWrite" maxlength="1000" placeholder="https://cdn.example.com/track.mp3">
-              <small>支持站内路径或 HTTPS 音频地址；请使用拥有播放权的音频文件。</small>
-            </label>
+
+            <div class="music-playlist-panel">
+              <div class="music-playlist-heading">
+                <div>
+                  <span>播放列表</span>
+                  <small>公开站会按列表顺序连续播放；第一首会兼容旧播放器字段。</small>
+                </div>
+                <button type="button" :disabled="!canWrite" @click="addMusicTrack">添加曲目</button>
+              </div>
+
+              <p v-if="!form.musicPlaylist.length" class="music-playlist-empty">还没有曲目，上传 MP3 或手动添加一个链接。</p>
+
+              <div
+                v-for="(track, index) in form.musicPlaylist"
+                :key="`${track.url}-${index}`"
+                class="music-track-item"
+              >
+                <div class="music-track-order">
+                  <strong>{{ index + 1 }}</strong>
+                  <button
+                    type="button"
+                    :disabled="!canWrite || index === 0"
+                    :aria-label="`上移第 ${index + 1} 首`"
+                    @click="moveMusicTrack(index, -1)"
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    :disabled="!canWrite || index === form.musicPlaylist.length - 1"
+                    :aria-label="`下移第 ${index + 1} 首`"
+                    @click="moveMusicTrack(index, 1)"
+                  >
+                    ↓
+                  </button>
+                </div>
+
+                <div class="music-track-fields">
+                  <label>
+                    <span>曲目名称</span>
+                    <input v-model.trim="track.title" :disabled="!canWrite" maxlength="120" placeholder="夜间播放列表">
+                  </label>
+                  <label>
+                    <span>作者</span>
+                    <input v-model.trim="track.artist" :disabled="!canWrite" maxlength="120" placeholder="Wineclouds">
+                  </label>
+                  <label class="music-track-url">
+                    <span>音乐地址</span>
+                    <input v-model.trim="track.url" :disabled="!canWrite" maxlength="1000" placeholder="https://cdn.example.com/track.mp3">
+                  </label>
+                  <label class="music-track-cover">
+                    <span>封面地址</span>
+                    <input v-model.trim="track.coverUrl" :disabled="!canWrite" maxlength="1000" placeholder="/images/album-cover.webp">
+                  </label>
+                </div>
+
+                <button
+                  class="music-track-remove"
+                  type="button"
+                  :disabled="!canWrite"
+                  @click="removeMusicTrack(index)"
+                >
+                  删除
+                </button>
+              </div>
+            </div>
+
             <div class="profile-upload-row">
               <input
                 ref="musicFileInput"
@@ -275,16 +397,11 @@ onMounted(load)
                 :disabled="!canWrite || !mediaConfigured || uploadingMusic"
                 @click="chooseMusic"
               >
-                {{ uploadingMusic ? '上传中…' : form.musicUrl ? '替换 MP3' : '上传 MP3' }}
+                {{ uploadingMusic ? '上传中…' : '上传 MP3 并加入列表' }}
               </button>
               <small v-if="!mediaConfigured">对象存储未配置时，仍可填写已有 MP3 链接。</small>
               <small v-else>最大 {{ Math.round(maxAudioSize / 1024 / 1024) }} MB，上传后仍需保存资料。</small>
             </div>
-            <label>
-              <span>专辑封面地址</span>
-              <input v-model.trim="form.musicCoverUrl" :disabled="!canWrite" maxlength="1000" placeholder="/images/album-cover.webp">
-              <small>留空时使用站点头像作为圆形唱片封面。</small>
-            </label>
           </div>
         </fieldset>
 

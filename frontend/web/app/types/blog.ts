@@ -57,6 +57,13 @@ export interface HomeResponse {
   articleCount: number
 }
 
+export interface MusicTrack {
+  title: string
+  artist: string
+  url: string
+  coverUrl: string
+}
+
 export interface SiteProfile {
   avatarUrl: string
   signature: string
@@ -65,6 +72,8 @@ export interface SiteProfile {
   musicArtist: string
   musicUrl: string
   musicCoverUrl: string
+  musicPlaylist: MusicTrack[]
+  musicVolume: number
 }
 
 export interface SiteStatistics {

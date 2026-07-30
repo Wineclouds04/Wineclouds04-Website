@@ -1879,6 +1879,115 @@ textarea:focus-visible {
   gap: 16px;
 }
 
+.music-volume-control input[type="range"] {
+  padding: 0;
+  accent-color: var(--admin-primary);
+}
+
+.music-playlist-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.music-playlist-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.music-playlist-heading > div {
+  display: grid;
+  gap: 4px;
+}
+
+.music-playlist-heading span {
+  color: var(--admin-text);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.music-playlist-heading button,
+.music-track-order button,
+.music-track-remove {
+  min-height: 34px;
+  color: var(--admin-text);
+  border: 1px solid var(--admin-divider);
+  border-radius: 8px;
+  background: var(--admin-surface-raised);
+  font: inherit;
+}
+
+.music-playlist-heading button {
+  padding: 7px 12px;
+  white-space: nowrap;
+}
+
+.music-track-order button {
+  width: 34px;
+  padding: 0;
+}
+
+.music-track-remove {
+  align-self: start;
+  padding: 7px 12px;
+}
+
+.music-playlist-heading button:hover:not(:disabled),
+.music-track-order button:hover:not(:disabled),
+.music-track-remove:hover:not(:disabled) {
+  border-color: var(--admin-primary);
+  color: var(--admin-primary);
+}
+
+.music-playlist-empty {
+  margin: 0;
+  padding: 14px;
+  color: var(--admin-text-muted);
+  border: 1px dashed var(--admin-divider);
+  border-radius: 8px;
+  background: var(--admin-surface-raised);
+}
+
+.music-track-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--admin-divider);
+  border-radius: 10px;
+  background: rgb(255 255 255 / 38%);
+}
+
+.music-track-order {
+  display: grid;
+  align-content: start;
+  justify-items: center;
+  gap: 8px;
+}
+
+.music-track-order strong {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  color: var(--admin-primary);
+  border-radius: 50%;
+  background: rgb(118 200 255 / 16%);
+  font-size: 13px;
+}
+
+.music-track-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.music-track-url,
+.music-track-cover {
+  grid-column: 1 / -1;
+}
+
 .profile-success {
   margin: 0 0 16px;
   padding: 12px 16px;
@@ -1894,6 +2003,24 @@ textarea:focus-visible {
   }
 
   .statistics-settings-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .music-playlist-heading,
+  .music-track-item {
+    grid-template-columns: 1fr;
+  }
+
+  .music-playlist-heading {
+    display: grid;
+  }
+
+  .music-track-order {
+    grid-template-columns: auto auto auto;
+    justify-content: start;
+  }
+
+  .music-track-fields {
     grid-template-columns: 1fr;
   }
 }

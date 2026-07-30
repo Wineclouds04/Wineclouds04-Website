@@ -1,6 +1,8 @@
 package com.example.blog.site.service;
 
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.http.HttpStatus;
@@ -8,6 +10,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.example.blog.shared.error.ApiException;
+import com.example.blog.site.dto.MusicTrackRequest;
+import com.example.blog.site.dto.MusicTrackResponse;
 import com.example.blog.site.dto.SiteProfileResponse;
 import com.example.blog.site.dto.SiteProfileUpdateRequest;
 import com.example.blog.site.mapper.SiteProfileMapper;
@@ -23,6 +27,7 @@ public class SiteProfileService {
     private static final String DEFAULT_SIGNATURE = "本质哈基米";
     private static final String DEFAULT_MUSIC_TITLE = "未命名曲目";
     private static final String DEFAULT_MUSIC_ARTIST = "Wineclouds";
+    private static final int DEFAULT_MUSIC_VOLUME = 100;
 
     private final SiteProfileMapper mapper;
     private final ObjectMapper objectMapper;
@@ -43,18 +48,23 @@ public class SiteProfileService {
         String avatarUrl = normalizeAvatarUrl(request.avatarUrl());
         String signature = normalizeSignature(request.signature());
         boolean musicEnabled = request.musicEnabled();
-        String musicTitle = musicEnabled ? normalizeMusicText(request.musicTitle(), DEFAULT_MUSIC_TITLE) : "";
-        String musicArtist = musicEnabled ? normalizeMusicText(request.musicArtist(), DEFAULT_MUSIC_ARTIST) : "";
-        String musicUrl = musicEnabled ? normalizeMusicUrl(request.musicUrl()) : "";
-        String musicCoverUrl = musicEnabled ? normalizeMusicCoverUrl(request.musicCoverUrl(), avatarUrl) : "";
+        int musicVolume = normalizeMusicVolume(request.musicVolume());
+        List<MusicTrackResponse> musicPlaylist = musicEnabled
+                ? normalizeMusicPlaylist(request.musicPlaylist(), request, avatarUrl)
+                : List.of();
+        MusicTrackResponse primaryTrack = musicPlaylist.isEmpty()
+                ? new MusicTrackResponse("", "", "", "")
+                : musicPlaylist.getFirst();
         SiteProfileResponse profile = new SiteProfileResponse(
                 avatarUrl,
                 signature,
-                musicEnabled,
-                musicTitle,
-                musicArtist,
-                musicUrl,
-                musicCoverUrl
+                musicEnabled && !musicPlaylist.isEmpty(),
+                primaryTrack.title(),
+                primaryTrack.artist(),
+                primaryTrack.url(),
+                primaryTrack.coverUrl(),
+                musicPlaylist,
+                musicVolume
         );
         mapper.upsertProfileJson(writeProfile(profile));
         return profile;
@@ -77,15 +87,24 @@ public class SiteProfileService {
             String musicCoverUrl = musicEnabled
                     ? normalizeStoredMusicCoverUrl(node.path("musicCoverUrl").asText(null), avatarUrl)
                     : "";
-            boolean playableMusic = musicEnabled && !musicUrl.isEmpty();
+            List<MusicTrackResponse> musicPlaylist = musicEnabled
+                    ? normalizeStoredMusicPlaylist(node.path("musicPlaylist"), musicTitle, musicArtist, musicUrl, musicCoverUrl, avatarUrl)
+                    : List.of();
+            int musicVolume = normalizeStoredMusicVolume(node.path("musicVolume"));
+            MusicTrackResponse primaryTrack = musicPlaylist.isEmpty()
+                    ? new MusicTrackResponse("", "", "", "")
+                    : musicPlaylist.getFirst();
+            boolean playableMusic = musicEnabled && !musicPlaylist.isEmpty();
             return Optional.of(new SiteProfileResponse(
                     avatarUrl,
                     signature,
                     playableMusic,
-                    playableMusic ? musicTitle : "",
-                    playableMusic ? musicArtist : "",
-                    playableMusic ? musicUrl : "",
-                    playableMusic ? musicCoverUrl : ""
+                    playableMusic ? primaryTrack.title() : "",
+                    playableMusic ? primaryTrack.artist() : "",
+                    playableMusic ? primaryTrack.url() : "",
+                    playableMusic ? primaryTrack.coverUrl() : "",
+                    playableMusic ? musicPlaylist : List.of(),
+                    musicVolume
             ));
         } catch (JsonProcessingException exception) {
             return Optional.empty();
@@ -101,6 +120,8 @@ public class SiteProfileService {
         node.put("musicArtist", profile.musicArtist());
         node.put("musicUrl", profile.musicUrl());
         node.put("musicCoverUrl", profile.musicCoverUrl());
+        node.put("musicVolume", profile.musicVolume());
+        node.set("musicPlaylist", objectMapper.valueToTree(profile.musicPlaylist()));
         try {
             return objectMapper.writeValueAsString(node);
         } catch (JsonProcessingException exception) {
@@ -155,6 +176,45 @@ public class SiteProfileService {
         return normalizePublicUrl(url, "音乐封面只能使用站内路径或 HTTPS 链接");
     }
 
+    private List<MusicTrackResponse> normalizeMusicPlaylist(
+            List<MusicTrackRequest> playlist,
+            SiteProfileUpdateRequest request,
+            String avatarUrl
+    ) {
+        List<MusicTrackResponse> tracks = new ArrayList<>();
+        if (playlist != null) {
+            for (MusicTrackRequest track : playlist) {
+                if (track == null) continue;
+                if (isBlank(track.title()) && isBlank(track.artist()) && isBlank(track.url()) && isBlank(track.coverUrl())) {
+                    continue;
+                }
+                tracks.add(normalizeMusicTrack(track.title(), track.artist(), track.url(), track.coverUrl(), avatarUrl));
+            }
+        }
+        if (tracks.isEmpty()) {
+            tracks.add(normalizeMusicTrack(request.musicTitle(), request.musicArtist(), request.musicUrl(), request.musicCoverUrl(), avatarUrl));
+        }
+        return List.copyOf(tracks);
+    }
+
+    private MusicTrackResponse normalizeMusicTrack(String title, String artist, String url, String coverUrl, String avatarUrl) {
+        return new MusicTrackResponse(
+                normalizeMusicText(title, DEFAULT_MUSIC_TITLE),
+                normalizeMusicText(artist, DEFAULT_MUSIC_ARTIST),
+                normalizeMusicUrl(url),
+                normalizeMusicCoverUrl(coverUrl, avatarUrl)
+        );
+    }
+
+    private int normalizeMusicVolume(Integer value) {
+        if (value == null) return DEFAULT_MUSIC_VOLUME;
+        return Math.max(0, Math.min(100, value));
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
     private String normalizeStoredAvatarUrl(String value) {
         try {
             return normalizeAvatarUrl(value);
@@ -195,6 +255,37 @@ public class SiteProfileService {
         }
     }
 
+    private List<MusicTrackResponse> normalizeStoredMusicPlaylist(
+            JsonNode playlistNode,
+            String fallbackTitle,
+            String fallbackArtist,
+            String fallbackUrl,
+            String fallbackCoverUrl,
+            String avatarUrl
+    ) {
+        List<MusicTrackResponse> tracks = new ArrayList<>();
+        if (playlistNode.isArray()) {
+            for (JsonNode trackNode : playlistNode) {
+                if (!trackNode.isObject()) continue;
+                String url = normalizeStoredMusicUrl(trackNode.path("url").asText(null));
+                if (url.isEmpty()) continue;
+                String title = normalizeStoredMusicText(trackNode.path("title").asText(null), DEFAULT_MUSIC_TITLE);
+                String artist = normalizeStoredMusicText(trackNode.path("artist").asText(null), DEFAULT_MUSIC_ARTIST);
+                String coverUrl = normalizeStoredMusicCoverUrl(trackNode.path("coverUrl").asText(null), avatarUrl);
+                tracks.add(new MusicTrackResponse(title, artist, url, coverUrl));
+            }
+        }
+        if (tracks.isEmpty() && !fallbackUrl.isEmpty()) {
+            tracks.add(new MusicTrackResponse(fallbackTitle, fallbackArtist, fallbackUrl, fallbackCoverUrl));
+        }
+        return List.copyOf(tracks);
+    }
+
+    private int normalizeStoredMusicVolume(JsonNode node) {
+        if (!node.isInt()) return DEFAULT_MUSIC_VOLUME;
+        return normalizeMusicVolume(node.asInt());
+    }
+
     private String normalizePublicUrl(String value, String errorMessage) {
         if (value.startsWith("/") && !value.startsWith("//")) return value;
         try {
@@ -214,7 +305,9 @@ public class SiteProfileService {
                 "",
                 "",
                 "",
-                ""
+                "",
+                List.of(),
+                DEFAULT_MUSIC_VOLUME
         );
     }
 }
