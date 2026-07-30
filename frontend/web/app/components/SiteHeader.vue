@@ -10,14 +10,28 @@ const isScrolled = ref(false)
 const audio = ref<HTMLAudioElement | null>(null)
 const playing = ref(false)
 const audioFailed = ref(false)
-const musicAvailable = computed(() => Boolean(profile.value?.musicEnabled && profile.value.musicUrl))
+const currentTrackIndex = ref(0)
+const musicPlaylist = computed(() => {
+  const tracks = profile.value?.musicPlaylist?.filter((track) => track.url) ?? []
+  if (tracks.length) return tracks
+  if (!profile.value?.musicUrl) return []
+  return [{
+    title: profile.value.musicTitle,
+    artist: profile.value.musicArtist,
+    url: profile.value.musicUrl,
+    coverUrl: profile.value.musicCoverUrl
+  }]
+})
+const currentTrack = computed(() => musicPlaylist.value[currentTrackIndex.value] ?? null)
+const musicVolume = computed(() => Math.min(100, Math.max(0, profile.value?.musicVolume ?? 100)) / 100)
+const musicAvailable = computed(() => Boolean(profile.value?.musicEnabled && currentTrack.value?.url))
 const playerCover = computed(() =>
-  profile.value?.musicCoverUrl || profile.value?.avatarUrl || '/images/wineclouds-avatar.webp'
+  currentTrack.value?.coverUrl || profile.value?.avatarUrl || '/images/wineclouds-avatar.webp'
 )
 const playerLabel = computed(() => {
   if (!musicAvailable.value) return '尚未配置背景音乐'
   if (audioFailed.value) return '音乐暂时无法播放'
-  const title = profile.value?.musicTitle || '背景音乐'
+  const title = currentTrack.value?.title || '背景音乐'
   return playing.value ? `暂停 ${title}` : `播放 ${title}`
 })
 
@@ -38,6 +52,7 @@ const updateScrollState = () => {
 
 const startPlayback = async () => {
   if (!audio.value || !musicAvailable.value) return
+  audio.value.volume = musicVolume.value
   try {
     await audio.value.play()
     playing.value = true
@@ -56,6 +71,34 @@ const togglePlayback = async () => {
     audio.value.pause()
   }
 }
+
+const playNextTrack = async () => {
+  if (!musicPlaylist.value.length) return
+  currentTrackIndex.value = (currentTrackIndex.value + 1) % musicPlaylist.value.length
+  audioFailed.value = false
+  await nextTick()
+  await startPlayback()
+}
+
+watch(musicVolume, (volume) => {
+  if (audio.value) {
+    audio.value.volume = volume
+  }
+})
+
+watch(musicPlaylist, (playlist) => {
+  if (currentTrackIndex.value >= playlist.length) {
+    currentTrackIndex.value = 0
+  }
+})
+
+watch(() => currentTrack.value?.url, async () => {
+  audioFailed.value = false
+  await nextTick()
+  if (audio.value) {
+    audio.value.volume = musicVolume.value
+  }
+})
 
 onMounted(async () => {
   updateScrollState()
@@ -93,12 +136,12 @@ onBeforeUnmount(() => {
           <audio
             v-if="musicAvailable"
             ref="audio"
-            :src="profile?.musicUrl"
+            :src="currentTrack?.url"
             autoplay
-            loop
             preload="auto"
             @play="playing = true"
             @pause="playing = false"
+            @ended="playNextTrack"
             @error="audioFailed = true; playing = false"
           />
           <button
